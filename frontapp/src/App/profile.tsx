@@ -12,13 +12,15 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 interface ProfileProps {
   user: User;
+  onLogout: () => Promise<void>;
 }
+
 interface MoodEntry {
   mood: number;
   timestamp: Timestamp;
 }
 
-const Profile: React.FC<ProfileProps> = ({ user }) => {
+const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
   const [mood, setMood] = useState(50);
   const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
   const db = getFirestore();
@@ -85,10 +87,10 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
       color: "black",
     },
     navLink: {
-        color: "black",
-        marginRight: "16px",
-        textDecoration: "none",
-      },
+      color: "black",
+      marginRight: "16px",
+      textDecoration: "none",
+    },
     card: {
       backgroundColor: "white",
       borderRadius: "8px",
@@ -106,83 +108,91 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
       marginBottom: "8px",
     },
     progressContainer: {
-        display: "flex",
-        marginTop: "8px",
-      },
-      halfWidth: {
-        width: "50%",
-      },
-      inputRange: {
-        width: "100%",
-        marginTop: "8px",
-      },
-      toggleContainer: {
-        display: "flex",
-        alignItems: "center",
-        marginTop: "16px",
-      },
-      toggleLabel: {
-        marginRight: "8px",
-      },
-      toggleSwitch: {
-        marginLeft: "8px",
-      },
-      resourcesContainer: {
-        backgroundColor: "#E8F5E9",
-        padding: "16px",
-        borderRadius: "8px",
-        marginTop: "16px",
-        color:"black"
-      },
+      display: "flex",
+      marginTop: "8px",
+    },
+    halfWidth: {
+      width: "50%",
+    },
+    inputRange: {
+      width: "100%",
+      marginTop: "8px",
+    },
+    toggleContainer: {
+      display: "flex",
+      alignItems: "center",
+      marginTop: "16px",
+    },
+    toggleLabel: {
+      marginRight: "8px",
+    },
+    toggleSwitch: {
+      marginLeft: "8px",
+    },
+    resourcesContainer: {
+      backgroundColor: "#E8F5E9",
+      padding: "16px",
+      borderRadius: "8px",
+      marginTop: "16px",
+      color: "black"
+    },
+    logoutButton: {
+      backgroundColor: "#ef4444",
+      color: "white",
+      padding: "8px 16px",
+      borderRadius: "4px",
+      border: "none",
+      cursor: "pointer",
+      marginTop: "16px",
+    },
   };
 
   return (
     <div style={styles.container}>
-    <div style={styles.content}>
-      <header style={styles.header}>
-      <img src="frontapp/src/assets/Icons/6.png" alt=""
-          />
-        <h1 style={styles.h1}>Moodtivation</h1>
-        <nav>
-          <a href="/" style={styles.navLink}>
-            Home
-          </a>
-          <a href="/" style={styles.navLink}>
-            Activities
-          </a>
-          <a style={{ ...styles.navLink, fontWeight: "bold" }}>Profile</a>
-        </nav>
-      </header>
+      <div style={styles.content}>
+        <header style={styles.header}>
+          <img src="frontapp/src/assets/Icons/6.png" alt="" />
+          <h1 style={styles.h1}>Moodtivation</h1>
+          <nav>
+            <a href="/" style={styles.navLink}>
+              Home
+            </a>
+            <a href="/" style={styles.navLink}>
+              Activities
+            </a>
+            <a style={{ ...styles.navLink, fontWeight: "bold" }}>Profile</a>
+          </nav>
+        </header>
 
-      <div style={styles.card}>
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <img
-            src="/frontapp/src/assets/Icons/12.png"
-            alt="Jessica Parker"
-            style={styles.profileImage}
-          />
-          <div>
-            <h2 style={styles.sectionTitle}>Jessica Parker</h2>
-            <p>Engaged in 5 activities this week</p>
+        <div style={styles.card}>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <img
+              src="/frontapp/src/assets/Icons/12.png"
+              alt="Jessica Parker"
+              style={styles.profileImage}
+            />
+            <div>
+              <h2 style={styles.sectionTitle}>Jessica Parker</h2>
+              <p>Engaged in 5 activities this week</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div
-        style={{
-          ...styles.card,
-          backgroundColor: "#C7C7F1" ,
-        }}
-      >
-        <h3 style={styles.sectionTitle}>Set Your Goals</h3>
-        <label>Daily Meditation (minutes)</label>
-        <input type="range" min="1" max="60" style={styles.inputRange} />
+        <div
+          style={{
+            ...styles.card,
+            backgroundColor: "#C7C7F1",
+          }}
+        >
+          <h3 style={styles.sectionTitle}>Set Your Goals</h3>
+          <label>Daily Meditation (minutes)</label>
+          <input type="range" min="1" max="60" style={styles.inputRange} />
 
-        <div style={styles.toggleContainer}>
-          <span style={styles.toggleLabel}>Receive Notifications</span>
-          <input type="checkbox" style={styles.toggleSwitch} />
+          <div style={styles.toggleContainer}>
+            <span style={styles.toggleLabel}>Receive Notifications</span>
+            <input type="checkbox" style={styles.toggleSwitch} />
+          </div>
         </div>
-      </div>
 
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>Your Progress</h2>
@@ -208,12 +218,17 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
             </ResponsiveContainer>
           </div>
         </div>
+
         <div style={styles.resourcesContainer}>
           <h3 style={styles.sectionTitle}>Resources & Tools</h3>
           <ul>
             <li>Meditation Techniques</li>
           </ul>
         </div>
+
+        <button style={styles.logoutButton} onClick={onLogout}>
+          Logout
+        </button>
       </div>
     </div>
   );

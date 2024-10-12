@@ -30,12 +30,6 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import {
-  getStorage,
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-} from 'firebase/storage';
-import {
   LineChart,
   Line,
   XAxis,
@@ -44,9 +38,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { v4 as uuidv4 } from 'uuid';
-import {fetchQuote}  from './quotes'; // Import the fetchQuote function
-import ChoiceActivities from './ChoiceActivities'; 
+import { fetchQuote } from './quotes';
+import ChoiceActivities from './ChoiceActivities';
 
 interface DashboardProps {
   user: FirebaseUser;
@@ -128,9 +121,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [streak, setStreak] = useState(0);
   const [profilePicUrl, setProfilePicUrl] = useState<string>('/api/placeholder/40/40');
-  const [isUploading, setIsUploading] = useState(false);
   const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [quote, setQuote] = useState<string>('Loading quote...');
 
   const navigate = useNavigate();
   const db = getFirestore();
@@ -191,16 +183,36 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     return () => clearInterval(timer);
   }, [lastRecordTime]);
-  const [quote, setQuote] = useState<string>('Loading quote...');
 
   useEffect(() => {
-      const getQuote = async () => {
-          const fetchedQuote = await fetchQuote(); // Fetch quote using the imported function
-          setQuote(fetchedQuote);
-      };
+    const getQuote = async () => {
+      const fetchedQuote = await fetchQuote();
+      setQuote(fetchedQuote);
+    };
 
-      getQuote();
+    getQuote();
   }, []);
+
+  useEffect(() => {
+    const fetchProfilePic = async () => {
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const data = userDocSnap.data();
+          if (data.profilePicUrl) {
+            setProfilePicUrl(data.profilePicUrl);
+          }
+        } else {
+          await setDoc(userDocRef, { profilePicUrl: '' });
+        }
+      } catch (error) {
+        console.error('Error fetching profile picture:', error);
+      }
+    };
+    fetchProfilePic();
+  }, [user.uid, db]);
+
   const calculateStreak = (moodHistory: MoodEntry[]): number => {
     if (moodHistory.length === 0) return 0;
 
@@ -329,58 +341,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     }))
     .reverse();
 
-  useEffect(() => {
-    const fetchProfilePic = async () => {
-      try {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          const data = userDocSnap.data();
-          if (data.profilePicUrl) {
-            setProfilePicUrl(data.profilePicUrl);
-          }
-        } else {
-          await setDoc(userDocRef, { profilePicUrl: '' });
-        }
-      } catch (error) {
-        console.error('Error fetching profile picture:', error);
-      }
-    };
-    fetchProfilePic();
-  }, [user.uid, db]);
-
-  const handleImageChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      try {
-        setIsUploading(true);
-        const storage = getStorage();
-        const uniqueFileName = `${uuidv4()}_${file.name}`;
-        const storageReference = storageRef(
-          storage,
-          `profilePictures/${user.uid}/${uniqueFileName}`
-        );
-        await uploadBytes(storageReference, file);
-        const downloadURL = await getDownloadURL(storageReference);
-
-        const userDocRef = doc(db, 'users', user.uid);
-        await setDoc(userDocRef, { profilePicUrl: downloadURL }, { merge: true });
-
-        setProfilePicUrl(downloadURL);
-        setIsUploading(false);
-        setPopupMessage('Profile picture updated!');
-        setShowPopup(true);
-        setTimeout(() => setShowPopup(false), 2000);
-      } catch (error) {
-        console.error('Error uploading profile picture:', error);
-        setIsUploading(false);
-        setPopupMessage('Failed to upload profile picture. Please try again.');
-        setShowPopup(true);
-        setTimeout(() => setShowPopup(false), 3000);
-      }
-    }
+  const handleProfileClick = () => {
+    navigate('/profile');
   };
 
   const styles: { [key: string]: CSSProperties } = {
@@ -418,6 +380,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       borderRadius: '9999px',
       marginRight: '0.75rem',
       objectFit: 'cover',
+      cursor: 'pointer',
     },
     welcomeText: {
       fontSize: windowWidth < 768 ? '1rem' : '1.25rem',
@@ -439,7 +402,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       height: '2rem',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center',fontWeight: 'bold',
+      justifyContent: 'center',
+      fontWeight: 'bold',
       position: 'relative',
     },
     notificationDot: {
@@ -603,25 +567,18 @@ const Dashboard: React.FC<DashboardProps> = ({
                 style={styles.avatar}
                 onMouseEnter={() => setIsHoveringAvatar(true)}
                 onMouseLeave={() => setIsHoveringAvatar(false)}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={handleProfileClick}
               />
               {isHoveringAvatar && (
                 <div
                   style={styles.avatarOverlay}
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={handleProfileClick}
                 >
                   <span style={styles.avatarOverlayText}>
-                    Change
+                    View Profile
                   </span>
                 </div>
               )}
-              <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                style={{ display: 'none' }}
-                onChange={handleImageChange}
-              />
             </div>
             <div>
               <h1 style={styles.welcomeText}>Welcome back!</h1>
@@ -676,8 +633,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div style={styles.quoteCard}>
           <div style={styles.quoteContent}>
             <Leaf color="#22c55e" size={20} />
-            <p style={styles.quote}>{quote}
-            </p>
+            <p style={styles.quote}>{quote}</p>
           </div>
           <div style={styles.moodOverview}>
             <div>
@@ -728,7 +684,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
         <Activities />
         <ChoiceActivities />
-        {/* Additional content sometime soon*/}
       </div>
       {showPopup && <div style={styles.popup}>{popupMessage}</div>}
     </div>
