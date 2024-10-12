@@ -1,9 +1,12 @@
+
 import React, { useState, useEffect, CSSProperties } from 'react';
 import { Smile, Meh, Frown, Leaf, ChevronDown } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { getFirestore, collection, addDoc, query, orderBy, getDocs, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {fetchQuote}  from './quotes'; // Import the fetchQuote function
+
 
 interface DashboardProps {
   user: User;
@@ -145,6 +148,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     date: entry.timestamp.toDate().toLocaleDateString(),
     mood: entry.mood
   })).reverse();
+  const [quote, setQuote] = useState<string>('Loading quote...');
+
+  useEffect(() => {
+      const getQuote = async () => {
+          const fetchedQuote = await fetchQuote(); // Fetch quote using the imported function
+          setQuote(fetchedQuote);
+      };
+
+      getQuote();
+  }, []);
 
   const styles: { [key: string]: CSSProperties } = {
     container: {
@@ -386,7 +399,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <div style={styles.quoteCard}>
           <div style={styles.quoteContent}>
             <Leaf color="#22c55e" size={100} />
-            <p style={styles.quote}>"Your potential is endless. Keep pushing forward!"</p>
+            <p style={styles.quote}>{quote}</p>
           </div>
           <div style={styles.moodOverview}>
             <div>
@@ -394,7 +407,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <p>Positive Mindset</p>
             </div>
             <div>
-            <p style={styles.moodOverviewItem}>Gratitude journal</p>
+            <p style={styles.moodOverviewItem}>Work in progress</p>
               <p>Mindfulness Practice</p>
             </div>
             <div>
