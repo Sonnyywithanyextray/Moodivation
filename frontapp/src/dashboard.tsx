@@ -341,7 +341,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       <div style={styles.content}>
         <div style={styles.header}>
           <div style={styles.userInfo}>
-            <img src="/api/placeholder/40/40" alt="User" style={styles.avatar} />
+            <button onClick={()=>navigate("/profile")}><img src="/api/placeholder/40/40" alt="User" style={styles.avatar} /></button>
             <div>
               <h1 style={styles.welcomeText}>Welcome back!</h1>
               <p style={styles.userEmail}>{user.email}</p>
