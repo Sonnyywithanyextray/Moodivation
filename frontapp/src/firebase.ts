@@ -1,10 +1,8 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth"; // Add this import
+import { getAuth } from "firebase/auth";
+import { getFirestore, collection } from "firebase/firestore";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDdqmeNBhW8WL_v5AXlo74Kccs5zxJBGic",
   authDomain: "moodmarathon.firebaseapp.com",
@@ -15,10 +13,13 @@ const firebaseConfig = {
   measurementId: "G-TXCEFRSMC6"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
-const auth = getAuth(app); // Initialize Firebase Authentication
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-// Export the auth object
-export { auth };
+const moodsCollection = collection(db, "moods");
+const activityTypesCollection = collection(db, "activityTypes");
+const userActivitiesCollection = collection(db, "userActivities");
+
+export { auth, db, moodsCollection, activityTypesCollection, userActivitiesCollection };
