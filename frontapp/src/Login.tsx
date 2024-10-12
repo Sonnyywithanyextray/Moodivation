@@ -8,6 +8,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,9 +21,9 @@ const Login: React.FC = () => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate('/dashboard');
     } catch (error: any) {
       console.error('Login Error:', error.message);
+      setError(error.message);
     }
   };
 
@@ -132,6 +133,10 @@ const Login: React.FC = () => {
       textAlign: 'center',
       marginTop: '15px',
     },
+    errorMessage: {
+      color: 'red',
+      marginBottom: '10px',
+    },
   };
 
   return (
@@ -164,6 +169,7 @@ const Login: React.FC = () => {
               required
               style={styles.input}
             />
+            {error && <p style={styles.errorMessage}>{error}</p>}
             <a href="#" style={styles.forgotPassword}>
               Forgot your password?
             </a>

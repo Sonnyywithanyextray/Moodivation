@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './firebase';
 import Login from './Login';
 import Register from './Register';
+import Dashboard from './dashboard'; // Make sure this matches your file name
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -27,16 +28,16 @@ function App() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
-      <Route path="/dashboard" element={
-        user ? (
-          <div>
-            <h2>Welcome, {user.email}</h2>
-            <button onClick={handleLogout}>Logout</button>
-          </div>
-        ) : (
-          <Navigate to="/login" />
-        )
-      } />
+      <Route
+        path="/dashboard"
+        element={
+          user ? (
+            <Dashboard user={user} onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
     </Routes>
   );
