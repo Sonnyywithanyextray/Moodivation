@@ -2,6 +2,7 @@ import React, { useState, CSSProperties, useEffect } from 'react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../services/firebase';
 import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import logo from '../../assets/logo1.png';
 
 const Register: React.FC = () => {
@@ -29,6 +30,18 @@ const Register: React.FC = () => {
       console.error('Registration Error:', error.message);
       setRegistrationMessage(`Registration failed: ${error.message}`);
     }
+  };
+
+  const pageVariants = {
+    initial: { opacity: 0, x: '100%' },
+    in: { opacity: 1, x: 0 },
+    out: { opacity: 0, x: '-100%' }
+  };
+
+  const pageTransition = {
+    type: 'tween',
+    ease: 'anticipate',
+    duration: 0.5
   };
 
   const logoSize = windowWidth < 768 ? '150px' : windowWidth < 1024 ? '175px' : '200px';
@@ -138,6 +151,14 @@ const Register: React.FC = () => {
   };
 
   return (
+    <motion.div
+      style={styles.container}
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+    >
     <div style={styles.container}>
       <div style={styles.formContainer}>
         <div style={styles.leftSection}>
@@ -181,6 +202,7 @@ const Register: React.FC = () => {
         </div>
       </div>
     </div>
+    </motion.div>
   );
 };
 

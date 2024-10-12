@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './services/firebase';
+import { AnimatePresence } from 'framer-motion';
 import Login from './App/Authentication/Login';
 import Register from './App/Authentication/Register';
 import Dashboard from './App/dashboard';
@@ -9,6 +10,7 @@ import Profile from './App/profile';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -26,31 +28,33 @@ function App() {
   };
 
   return (
-    <Routes>
-      <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
-      <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
-      <Route
-        path="/dashboard"
-        element={
-          user ? (
-            <Dashboard user={user} onLogout={handleLogout} />
-          ) : (
-            <Navigate to="/login" />
-          )
-        }
-      />
-      <Route
-        path="/profile"
-        element={
-          user ? (
-            <Profile user={user} onLogout={handleLogout} />
-          ) : (
-            <Navigate to="/login" />
-          )
-        }
-      />
-      <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
-    </Routes>
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+        <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
+        <Route
+          path="/dashboard"
+          element={
+            user ? (
+              <Dashboard user={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            user ? (
+              <Profile user={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
+      </Routes>
+    </AnimatePresence>
   );
 }
 

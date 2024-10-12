@@ -3,6 +3,8 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../services/firebase';
 import {  Link } from 'react-router-dom';
 import logo from '../../assets/logo1.png';
+import { motion } from 'framer-motion';
+
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -25,6 +27,19 @@ const Login: React.FC = () => {
       setError(error.message);
     }
   };
+
+  const pageVariants = {
+    initial: { opacity: 0, x: '-100%' },
+    in: { opacity: 1, x: 0 },
+    out: { opacity: 0, x: '100%' }
+  };
+
+  const pageTransition = {
+    type: 'tween',
+    ease: 'anticipate',
+    duration: 0.5
+  };
+
 
   const logoSize = windowWidth < 768 ? '150px' : windowWidth < 1024 ? '175px' : '200px';
 
@@ -139,6 +154,15 @@ const Login: React.FC = () => {
   };
 
   return (
+    
+    <motion.div
+      style={styles.container}
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+    >
     <div style={styles.container}>
       <div style={styles.formContainer}>
         <div style={styles.leftSection}>
@@ -182,6 +206,7 @@ const Login: React.FC = () => {
         </div>
       </div>
     </div>
+    </motion.div>
   );
 };
 
