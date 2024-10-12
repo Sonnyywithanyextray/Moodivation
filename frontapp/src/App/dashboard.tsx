@@ -46,6 +46,7 @@ import {
 } from 'recharts';
 import { v4 as uuidv4 } from 'uuid';
 import {fetchQuote}  from './quotes'; // Import the fetchQuote function
+import ChoiceActivities from './ChoiceActivities'; 
 
 interface DashboardProps {
   user: FirebaseUser;
@@ -726,6 +727,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           </button>
         </div>
         <Activities />
+        <ChoiceActivities />
+        {/* Additional content sometime soon*/}
       </div>
       {showPopup && <div style={styles.popup}>{popupMessage}</div>}
     </div>
