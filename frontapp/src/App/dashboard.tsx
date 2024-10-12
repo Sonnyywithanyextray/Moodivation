@@ -248,7 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       accentColor: moodColor,
     },
     quoteCard: {
-      backgroundColor: '#d8b4fe',
+      backgroundColor: '#c7c7f1',
       borderRadius: '0.5rem',
       padding: '1rem',
       marginBottom: '1rem',
@@ -261,7 +261,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     quote: {
       color: 'black',
       fontWeight: '500',
-      fontSize: '0.875rem',
+      fontSize: '1.175rem',
       marginLeft: '0.5rem',
     },
     moodOverview: {
@@ -341,7 +341,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       <div style={styles.content}>
         <div style={styles.header}>
           <div style={styles.userInfo}>
-            <img src="/api/placeholder/40/40" alt="User" style={styles.avatar} />
+            <button onClick={()=>navigate("/profile")}><img src="/api/placeholder/40/40" alt="User" style={styles.avatar} /></button>
             <div>
               <h1 style={styles.welcomeText}>Welcome back!</h1>
               <p style={styles.userEmail}>{user.email}</p>
@@ -367,9 +367,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <div style={styles.moodTracker}>
           <p style={styles.moodQuestion}>How are you feeling today?</p>
           <div style={styles.moodIcons}>
-            <Frown color={mood <= 33 ? '#ef4444' : '#9ca3af'} size={24} />
-            <Meh color={mood > 33 && mood <= 66 ? '#eab308' : '#9ca3af'} size={24} />
-            <Smile color={mood > 66 ? '#22c55e' : '#9ca3af'} size={24} />
+            <Frown color="#c7c7f1" fill={mood <= 33 ? '#ef4444' : '#9ca3af'} size={24} />
+            <Meh color="#c7c7f1" fill={mood > 33 && mood <= 66 ? '#eab308' : '#9ca3af'} size={24} />
+            <Smile color="#c7c7f1" fill={mood > 66 ? '#22c55e' : '#9ca3af'} size={24} />
           </div>
           <input
             type="range"
@@ -385,21 +385,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
         <div style={styles.quoteCard}>
           <div style={styles.quoteContent}>
-            <Leaf color="#22c55e" size={20} />
+            <Leaf color="#22c55e" size={100} />
             <p style={styles.quote}>"Your potential is endless. Keep pushing forward!"</p>
           </div>
           <div style={styles.moodOverview}>
             <div>
               <p style={styles.moodOverviewItem}>Mood overview</p>
-              <p>Positive</p>
+              <p>Positive Mindset</p>
             </div>
             <div>
             <p style={styles.moodOverviewItem}>Gratitude journal</p>
-              <p>Mindfulness</p>
+              <p>Mindfulness Practice</p>
             </div>
             <div>
               <p style={styles.moodOverviewItem}>Stress level</p>
-              <p>Calmness</p>
+              <p>Calmness achieved</p>
             </div>
           </div>
         </div>

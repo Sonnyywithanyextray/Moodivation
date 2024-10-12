@@ -1,15 +1,14 @@
 import React, { useState, CSSProperties, useEffect } from 'react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from './firebase';
-import { useNavigate, Link } from 'react-router-dom';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../services/firebase';
+import {  Link } from 'react-router-dom';
 import logo from './assets/logo1.png';
 
-const Register: React.FC = () => {
+const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const [registrationMessage, setRegistrationMessage] = useState('');
-  const navigate = useNavigate();
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -17,17 +16,13 @@ const Register: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      setRegistrationMessage('Registration successful! Please log in.');
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
-      console.error('Registration Error:', error.message);
-      setRegistrationMessage(`Registration failed: ${error.message}`);
+      console.error('Login Error:', error.message);
+      setError(error.message);
     }
   };
 
@@ -109,6 +104,14 @@ const Register: React.FC = () => {
       color: 'white',
       fontSize: '16px',
     },
+    forgotPassword: {
+      color: '#4caf50',
+      textDecoration: 'none',
+      fontSize: '14px',
+      display: 'block',
+      textAlign: 'right',
+      marginBottom: '15px',
+    },
     button: {
       width: '100%',
       padding: '12px',
@@ -121,7 +124,7 @@ const Register: React.FC = () => {
       cursor: 'pointer',
       transition: 'background-color 0.3s',
     },
-    loginLink: {
+    registerLink: {
       color: '#4caf50',
       textDecoration: 'none',
       fontSize: '14px',
@@ -129,11 +132,9 @@ const Register: React.FC = () => {
       textAlign: 'center',
       marginTop: '15px',
     },
-    message: {
-      color: 'white',
-      textAlign: 'center',
-      marginTop: '15px',
-      fontSize: '16px',
+    errorMessage: {
+      color: 'red',
+      marginBottom: '10px',
     },
   };
 
@@ -144,13 +145,13 @@ const Register: React.FC = () => {
           <div style={styles.logoContainer}>
             <img src={logo} alt="MoodiFi Logo" style={styles.logo} />
           </div>
-          <h1 style={styles.title}>Join MoodiFi</h1>
+          <h1 style={styles.title}>Welcome to MoodiFi</h1>
           <p style={styles.subtitle}>
-            Start your journey to better mental well-being today.
+            Track and improve your mental well-being with our innovative platform.
           </p>
         </div>
         <div style={styles.rightSection}>
-          <form onSubmit={handleRegister} style={styles.form}>
+          <form onSubmit={handleLogin} style={styles.form}>
             <input
               type="email"
               placeholder="Email"
@@ -161,22 +162,22 @@ const Register: React.FC = () => {
             />
             <input
               type="password"
-              placeholder="Password (6+ characters)"
+              placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
               style={styles.input}
             />
+            {error && <p style={styles.errorMessage}>{error}</p>}
+            <a href="#" style={styles.forgotPassword}>
+              Forgot your password?
+            </a>
             <button type="submit" style={styles.button}>
-              Register
+              Enter
             </button>
           </form>
-          {registrationMessage && (
-            <p style={styles.message}>{registrationMessage}</p>
-          )}
-          <Link to="/" style={styles.loginLink}>
-            Already have an account? Login here
+          <Link to="/register" style={styles.registerLink}>
+            Don't have an account? Register here
           </Link>
         </div>
       </div>
@@ -184,4 +185,4 @@ const Register: React.FC = () => {
   );
 };
 
-export default Register;
+export default Login;
