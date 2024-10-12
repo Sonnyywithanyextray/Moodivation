@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Smile, Meh, Frown, Leaf } from 'lucide-react';
 import { User } from 'firebase/auth';
-
+import { useNavigate } from 'react-router-dom';
 interface DashboardProps {
   user: User;
   onLogout: () => Promise<void>;
@@ -9,6 +9,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [mood, setMood] = useState(50);
+  const navigate = useNavigate();
 
   return (
     <div className="bg-black text-white min-h-screen p-4">
@@ -16,7 +17,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         {/* Welcome Section */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
-            <img src="/api/placeholder/40/40" alt="User" className="w-10 h-10 rounded-full mr-3" />
+            <button onClick={() => navigate("/profile")}><img src="/api/placeholder/40/40" alt="User" className="w-10 h-10 rounded-full mr-3" />
+            </button>
             <div>
               <h1 className="text-xl font-semibold">Welcome back!</h1>
               <p className="text-sm text-gray-400">{user.email}</p>

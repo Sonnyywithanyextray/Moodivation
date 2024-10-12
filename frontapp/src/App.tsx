@@ -4,7 +4,8 @@ import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './firebase';
 import Login from './Login';
 import Register from './Register';
-import Dashboard from './dashboard'; // Make sure this matches your file name
+import Dashboard from './dashboard'; 
+import Profile from './profile';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -33,6 +34,16 @@ function App() {
         element={
           user ? (
             <Dashboard user={user} onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          user ? (
+            <Profile user={user} onLogout={handleLogout} />
           ) : (
             <Navigate to="/login" />
           )
