@@ -4,7 +4,7 @@ import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './services/firebase';
 import Login from './App/Authentication/Login';
 import Register from './App/Authentication/Register';
-import Dashboard from './App/dashboard'; 
+import Dashboard from './App/dashboard';
 import Profile from './App/profile';
 import Callback from './components/callback';
 function App() {
@@ -49,7 +49,7 @@ function App() {
             <Navigate to="/login" />
           )
         }
-      ></Route>
+      />
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
     </Routes>
   );
