@@ -1,42 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { getMoodPlaylists } from '../services/spotifyService';
+import { getCurrentPlayingTrack } from '../services/spotifyService';
 
-// Define the type for a playlist
-interface Playlist {
-  id: string;
+interface Track {
   name: string;
-  images: { url: string }[];
-  external_urls: { spotify: string };
+  artists: string;
+  albumArt: string;
 }
 
-const PlaylistSection: React.FC = () => {
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+const Spotify = ({ accessToken }: { accessToken: string }) => {
+  const [track, setTrack] = useState<Track | null>(null);
 
   useEffect(() => {
-    const fetchPlaylists = async () => {
-      const data = await getMoodPlaylists();
-      setPlaylists(data);
+    const fetchTrack = async () => {
+      const trackData = await getCurrentPlayingTrack(accessToken);
+      if (trackData && trackData.item) {
+        const trackName = trackData.item.name;
+        const artistName = trackData.item.artists.map((artist: any) => artist.name).join(', ');
+        const albumArt = trackData.item.album.images[0].url;
+
+        setTrack({ name: trackName, artists: artistName, albumArt: albumArt });
+      }
     };
 
-    fetchPlaylists();
-  }, []);
+    fetchTrack();
+  }, [accessToken]);
 
   return (
-    <div className="playlist-section">
-      <h2>Mood Playlists</h2>
-      <div className="playlist-grid">
-        {playlists.map(playlist => (
-          <div key={playlist.id} className="playlist-item">
-            <img src={playlist.images[0]?.url} alt={playlist.name} />
-            <h3>{playlist.name}</h3>
-            <a href={playlist.external_urls.spotify} target="_blank" rel="noopener noreferrer">
-              Listen on Spotify
-            </a>
-          </div>
-        ))}
-      </div>
+    <div>
+      {track ? (
+        <div className="current-track">
+          <img src={track.albumArt} alt="Album Art" style={{ width: '100px' }} />
+          <h2>{track.name}</h2>
+          <p>{track.artists}</p>
+        </div>
+      ) : (
+        <p>No song is currently playing</p>
+      )}
     </div>
   );
 };
 
-export default PlaylistSection;
+export default Spotify;
