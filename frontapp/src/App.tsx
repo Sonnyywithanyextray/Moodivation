@@ -39,7 +39,7 @@ function App() {
           )
         }
       />
-      <Route
+      {/* <Route
         path="/profile"
         element={
           user ? (
@@ -48,7 +48,7 @@ function App() {
             <Navigate to="/login" />
           )
         }
-      />
+      /> */}
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
     </Routes>
   );

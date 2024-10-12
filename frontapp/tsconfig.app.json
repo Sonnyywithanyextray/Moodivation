@@ -20,5 +20,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "src/services/firebase.ts"]
+  "include": ["src", "src/firebase.ts", "addActivityTypes.ts"]
 }
