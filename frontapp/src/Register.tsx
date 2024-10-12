@@ -2,12 +2,13 @@ import React, { useState, CSSProperties, useEffect } from 'react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from './firebase';
 import { useNavigate, Link } from 'react-router-dom';
-import logo from './assets/logo.png';
+import logo from './assets/logo1.png';
 
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [registrationMessage, setRegistrationMessage] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,9 +21,13 @@ const Register: React.FC = () => {
     e.preventDefault();
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      navigate('/dashboard');
+      setRegistrationMessage('Registration successful! Please log in.');
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
     } catch (error: any) {
       console.error('Registration Error:', error.message);
+      setRegistrationMessage(`Registration failed: ${error.message}`);
     }
   };
 
@@ -124,6 +129,12 @@ const Register: React.FC = () => {
       textAlign: 'center',
       marginTop: '15px',
     },
+    message: {
+      color: 'white',
+      textAlign: 'center',
+      marginTop: '15px',
+      fontSize: '16px',
+    },
   };
 
   return (
@@ -161,6 +172,9 @@ const Register: React.FC = () => {
               Register
             </button>
           </form>
+          {registrationMessage && (
+            <p style={styles.message}>{registrationMessage}</p>
+          )}
           <Link to="/" style={styles.loginLink}>
             Already have an account? Login here
           </Link>
