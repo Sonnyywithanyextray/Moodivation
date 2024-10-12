@@ -22,6 +22,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [popupMessage, setPopupMessage] = useState('');
   const [isSliding, setIsSliding] = useState(false);
   const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
+  const [lastRecordTime, setLastRecordTime] = useState<Date | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
   const navigate = useNavigate();
   const db = getFirestore();
 
@@ -44,6 +46,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         setMoodHistory(moodData);
         if (moodData.length > 0) {
           setMood(moodData[0].mood);
+          setLastRecordTime(moodData[0].timestamp.toDate());
         }
       } catch (error) {
         console.error("Error fetching mood data:", error);
@@ -54,6 +57,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     };
     fetchMoodData();
   }, [user.uid, db]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (lastRecordTime) {
+        const now = new Date();
+        const diff = 24 * 60 * 60 * 1000 - (now.getTime() - lastRecordTime.getTime());
+        if (diff > 0) {
+          const hours = Math.floor(diff / (60 * 60 * 1000));
+          const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+          setTimeRemaining(`${hours}h ${minutes}m`);
+        } else {
+          setTimeRemaining('');
+          setLastRecordTime(null);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [lastRecordTime]);
 
   const moodColor = mood > 66 ? '#22c55e' : mood > 33 ? '#eab308' : '#ef4444';
 
@@ -69,25 +91,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const handleMoodChangeEnd = async () => {
     setIsSliding(false);
-    try {
-      const moodsRef = collection(db, 'moods', user.uid, 'entries');
-      await addDoc(moodsRef, { 
-        mood: mood, 
-        timestamp: serverTimestamp()
-      });
-      console.log("Mood data sent to Firebase successfully");
-      setPopupMessage("Mood recorded!");
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 2000);
-      
-      // Update mood history
-      setMoodHistory(prevHistory => [{
-        mood: mood,
-        timestamp: Timestamp.now()
-      }, ...prevHistory]);
-    } catch (error) {
-      console.error("Error sending mood data to Firebase:", error);
-      setPopupMessage("Failed to record mood. Please try again.");
+    const now = new Date();
+    if (!lastRecordTime || now.getTime() - lastRecordTime.getTime() >= 24 * 60 * 60 * 1000) {
+      try {
+        const moodsRef = collection(db, 'moods', user.uid, 'entries');
+        await addDoc(moodsRef, { 
+          mood: mood, 
+          timestamp: serverTimestamp()
+        });
+        console.log("Mood data sent to Firebase successfully");
+        setPopupMessage("Mood recorded!");
+        setShowPopup(true);
+        setTimeout(() => setShowPopup(false), 2000);
+        
+        setLastRecordTime(now);
+        setMoodHistory(prevHistory => [{
+          mood: mood,
+          timestamp: Timestamp.fromDate(now)
+        }, ...prevHistory]);
+      } catch (error) {
+        console.error("Error sending mood data to Firebase:", error);
+        setPopupMessage("Failed to record mood. Please try again.");
+        setShowPopup(true);
+        setTimeout(() => setShowPopup(false), 3000);
+      }
+    } else {
+      setPopupMessage("You can only record your mood once every 24 hours.");
       setShowPopup(true);
       setTimeout(() => setShowPopup(false), 3000);
     }
@@ -299,6 +328,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
       zIndex: 1000,
     },
+    timerContainer: {
+      textAlign: 'center',
+      marginBottom: '1rem',
+      fontSize: '1.2rem',
+      fontWeight: 'bold',
+    },
   };
 
   return (
@@ -322,6 +357,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             </button>
           </div>
         </div>
+
+        {timeRemaining && (
+          <div style={styles.timerContainer}>
+            Next mood record in: {timeRemaining}
+          </div>
+        )}
 
         <div style={styles.moodTracker}>
           <p style={styles.moodQuestion}>How are you feeling today?</p>
@@ -353,7 +394,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <p>Positive</p>
             </div>
             <div>
-              <p style={styles.moodOverviewItem}>Gratitude journal</p>
+            <p style={styles.moodOverviewItem}>Gratitude journal</p>
               <p>Mindfulness</p>
             </div>
             <div>
