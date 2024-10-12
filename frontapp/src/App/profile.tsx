@@ -71,7 +71,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
       maxWidth: "480px",
     },
     header: {
-      backgroundColor: "#10b981",
+      backgroundColor: "#4caf50",
       padding: "16px",
       display: "flex",
       justifyContent: "space-between",
@@ -128,7 +128,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
         marginLeft: "8px",
       },
       resourcesContainer: {
-        backgroundColor: "#d1fae5",
+        backgroundColor: "#E8F5E9",
         padding: "16px",
         borderRadius: "8px",
         marginTop: "16px",
@@ -171,7 +171,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
       <div
         style={{
           ...styles.card,
-          backgroundColor: "#e9d5ff" ,
+          backgroundColor: "#C7C7F1" ,
         }}
       >
         <h3 style={styles.sectionTitle}>Set Your Goals</h3>

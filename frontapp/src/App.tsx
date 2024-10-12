@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { auth } from './firebase';
-import Login from './Login';
-import Register from './Register';
-import Dashboard from './dashboard'; 
-import Profile from './profile';
+import { auth } from './services/firebase';
+import Login from './App/Authentication/Login';
+import Register from './App/Authentication/Register';
+import Dashboard from './App/dashboard'; 
+import Profile from './App/profile';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
