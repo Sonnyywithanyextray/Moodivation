@@ -4,7 +4,7 @@ import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './firebase';
 import Login from './Login';
 import Register from './Register';
-import Dashboard from './dashboard'; // Make sure this matches your file name
+import Dashboard from './dashboard';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
