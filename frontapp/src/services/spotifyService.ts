@@ -1,47 +1,18 @@
-import { getAccessToken } from '../utils/helper';
 
-const API_BASE_URL = 'https://api.spotify.com/v1';
-
-// Define the user profile type
-interface UserProfile {
-  display_name: string;
-  images: { url: string }[];
-  activitiesCount: number;
-}
-
-// Define the playlist type
-interface Playlist {
-  id: string;
-  name: string;
-  images: { url: string }[];
-  external_urls: { spotify: string };
-}
-
-export const getUserProfile = async (): Promise<UserProfile> => {
-  const token = getAccessToken();
-
-  const response = await fetch(`${API_BASE_URL}/me`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-  return {
-    ...data,
-    activitiesCount: 5, // Example static data, change as needed
-  };
-};
-
-export const getMoodPlaylists = async (): Promise<Playlist[]> => {
-  const token = getAccessToken();
-
-  const response = await fetch(`${API_BASE_URL}/browse/categories/mood/playlists`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-  return data.playlists.items;
+export const getCurrentPlayingTrack = async (accessToken: string) => {
+    const response = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+  
+    if (response.status === 200) {
+      return response.json(); // Return track data
+    } else if (response.status === 204) {
+      console.log("No track is currently playing.");
+      return null;
+    } else {
+      console.error("Failed to fetch the current track.");
+    }
+  
 };

@@ -1,4 +1,4 @@
-import { db } from './firebase';
+import { db } from './services/firebase';
 import {
   addDoc,
   getDocs,
@@ -9,8 +9,6 @@ import {
   serverTimestamp,
   Timestamp,
   collection,
-  DocumentData,
-  CollectionReference,
   deleteDoc
 } from 'firebase/firestore';
 

@@ -9,10 +9,7 @@ import {
   Meh,
   Frown,
   Leaf,
-  ChevronDown,
-  Pause,
   User,
-  ShoppingCart,
   PhoneCall,
   Coffee,
   Wind,
@@ -26,8 +23,6 @@ import {
   Music as DanceIcon,
   Heart,
   Send,
-  X,
-  Check,
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
