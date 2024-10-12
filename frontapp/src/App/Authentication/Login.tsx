@@ -2,7 +2,7 @@ import React, { useState, CSSProperties, useEffect } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../services/firebase';
 import {  Link } from 'react-router-dom';
-import logo from './assets/logo1.png';
+import logo from '../../assets/logo1.png';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
