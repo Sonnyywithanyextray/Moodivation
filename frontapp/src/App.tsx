@@ -6,7 +6,7 @@ import Login from './App/Authentication/Login';
 import Register from './App/Authentication/Register';
 import Dashboard from './App/dashboard'; 
 import Profile from './App/profile';
-
+import Callback from './components/callback';
 function App() {
   const [user, setUser] = useState<User | null>(null);
 
@@ -39,7 +39,8 @@ function App() {
           )
         }
       />
-      {/* <Route
+       <Route path="/callback" element={<Callback/>} />
+      <Route
         path="/profile"
         element={
           user ? (
@@ -48,7 +49,7 @@ function App() {
             <Navigate to="/login" />
           )
         }
-      /> */}
+      ></Route>
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
     </Routes>
   );

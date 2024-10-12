@@ -624,7 +624,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               />
             </div>
             <div>
-              <h1 style={styles.welcomeText}>Welcome back!</h1>
+              <h1 onClick={() =>navigate('/profile')} style={styles.welcomeText}>Welcome back!</h1>
               <p style={styles.userEmail}>{user.email}</p>
             </div>
           </div>
