@@ -1,29 +1,34 @@
 import React, { useState } from 'react';
-import { JournalContainer, JournalTitle, JournalTextArea, SubmitButton } from './styles';
+import { InputContainer, InputField, SubmitButton, CancelButton } from './styles'; // Import styles
 
 interface JournalInputProps {
   onSubmit: (entry: string) => void;
+  onCancel?: () => void; // Optional cancel function to close modal if neexded
 }
 
-const JournalInput: React.FC<JournalInputProps> = ({ onSubmit }) => {
-  const [journalEntry, setJournalEntry] = useState("");
+const JournalInput: React.FC<JournalInputProps> = ({ onSubmit, onCancel }) => {
+  const [entry, setEntry] = useState('');
 
-  const handleSubmit = () => {
-    if (journalEntry.trim() === "") return;
-    onSubmit(journalEntry);
-    setJournalEntry("");
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (entry.trim()) {
+      onSubmit(entry);
+      setEntry(''); // Clear input after submission
+    }
   };
 
   return (
-    <JournalContainer>
-      <JournalTitle>Today's Journal Entry</JournalTitle>
-      <JournalTextArea
-        value={journalEntry}
-        onChange={(e) => setJournalEntry(e.target.value)}
-        placeholder="How do you feel today?"
+    <InputContainer onSubmit={handleSubmit}>
+      
+      <InputField
+        type="text"
+        placeholder="Write your journal entry..."
+        value={entry}
+        onChange={(e) => setEntry(e.target.value)}
       />
-      <SubmitButton onClick={handleSubmit}>Submit</SubmitButton>
-    </JournalContainer>
+      <SubmitButton type="submit">Submit</SubmitButton>
+      {onCancel && <CancelButton type="button" onClick={onCancel}>Cancel</CancelButton>}
+    </InputContainer>
   );
 };
 
