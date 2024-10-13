@@ -76,7 +76,7 @@ const getRecommendedActivities = (averageMood: number): Activity[] => {
     ];
   } else if (averageMood > 20 && averageMood <= 50) {
     return [
-      { icon: <Edit size={20} />, name: 'Journal', duration: '15 minutes', timeInSeconds: 900 },
+      { icon: <Edit size={20} />, name: 'Journal', duration: '10 seconds', timeInSeconds: 10 },
       { icon: <Music size={20} />, name: 'Listen to Music', duration: '30 minutes', timeInSeconds: 1800 },
       { icon: <Activity size={20} />, name: 'Workout', duration: '45 minutes', timeInSeconds: 2700 },
       { icon: <User size={20} />, name: 'Take a walk', duration: '20 minutes', timeInSeconds: 1200 },
@@ -208,11 +208,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     const fetchCompletedActivities = async () => {
       try {
         const activitiesRef = collection(db, 'activities', user.uid, 'completed');
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const oneWeekAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
         
         const q = query(activitiesRef, where('timestamp', '>=', oneWeekAgo));
         const querySnapshot = await getDocs(q);
+        console.log('Fetched activities:', querySnapshot.size);
         setCompletedActivities(querySnapshot.size);
       } catch (error) {
         console.error('Error fetching completed activities:', error);
@@ -416,6 +416,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           timestamp: serverTimestamp(),
         });
         setCompletedActivities(prev => prev + 1);
+        console.log('Activity recorded:', selectedActivity.name, 'for user:', user.uid);
       } catch (error) {
         console.error('Error recording completed activity:', error);
       }
