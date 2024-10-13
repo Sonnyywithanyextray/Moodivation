@@ -4,6 +4,7 @@ import { auth } from '../../services/firebase';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import logo from '../../assets/logo1.png';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
 
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -11,6 +12,7 @@ const Register: React.FC = () => {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [registrationMessage, setRegistrationMessage] = useState('');
   const navigate = useNavigate();
+  const db = getFirestore();
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -21,7 +23,18 @@ const Register: React.FC = () => {
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Store user data in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        email: user.email,
+        displayName: user.displayName || '',
+        mood: 50, // Set an initial neutral mood
+        createdAt: new Date(),
+      });
+
+      console.log("User registered and data stored in Firestore");
       setRegistrationMessage('Registration successful! Please log in.');
       setTimeout(() => {
         navigate('/');
@@ -159,49 +172,49 @@ const Register: React.FC = () => {
       variants={pageVariants}
       transition={pageTransition}
     >
-    <div style={styles.container}>
-      <div style={styles.formContainer}>
-        <div style={styles.leftSection}>
-          <div style={styles.logoContainer}>
-            <img src={logo} alt="MoodiFi Logo" style={styles.logo} />
+      <div style={styles.container}>
+        <div style={styles.formContainer}>
+          <div style={styles.leftSection}>
+            <div style={styles.logoContainer}>
+              <img src={logo} alt="MoodiFi Logo" style={styles.logo} />
+            </div>
+            <h1 style={styles.title}>Join MoodiFi</h1>
+            <p style={styles.subtitle}>
+              Start your journey to better mental well-being today.
+            </p>
           </div>
-          <h1 style={styles.title}>Join MoodiFi</h1>
-          <p style={styles.subtitle}>
-            Start your journey to better mental well-being today.
-          </p>
-        </div>
-        <div style={styles.rightSection}>
-          <form onSubmit={handleRegister} style={styles.form}>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={styles.input}
-            />
-            <input
-              type="password"
-              placeholder="Password (6+ characters)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              style={styles.input}
-            />
-            <button type="submit" style={styles.button}>
-              Register
-            </button>
-          </form>
-          {registrationMessage && (
-            <p style={styles.message}>{registrationMessage}</p>
-          )}
-          <Link to="/" style={styles.loginLink}>
-            Already have an account? Login here
-          </Link>
+          <div style={styles.rightSection}>
+            <form onSubmit={handleRegister} style={styles.form}>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                style={styles.input}
+              />
+              <input
+                type="password"
+                placeholder="Password (6+ characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                style={styles.input}
+              />
+              <button type="submit" style={styles.button}>
+                Register
+              </button>
+            </form>
+            {registrationMessage && (
+              <p style={styles.message}>{registrationMessage}</p>
+            )}
+            <Link to="/" style={styles.loginLink}>
+              Already have an account? Login here
+            </Link>
+          </div>
         </div>
       </div>
-    </div>
     </motion.div>
   );
 };

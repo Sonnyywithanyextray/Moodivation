@@ -1,3 +1,4 @@
+// Dashboard.tsx
 import React, { useState, useEffect, CSSProperties } from 'react';
 import {
   Smile,
@@ -31,6 +32,8 @@ import {
   serverTimestamp,
   Timestamp,
   where,
+  doc,
+  getDoc as firestoreGetDoc,
 } from 'firebase/firestore';
 import {
   LineChart,
@@ -50,6 +53,10 @@ import sd from '../assets/Emojis/5.svg';
 import dn from '../assets/Emojis/3.svg';
 import { motion } from 'framer-motion';
 import { usePersistentTimer } from '../hooks/usePersistentTimer';
+import FriendSearch from './FriendSearch';
+import FriendRequests from './FriendRequests';
+import PokeLists from './PokeLists';
+
 interface DashboardProps {
   user: FirebaseUser;
   onLogout: () => Promise<void>;
@@ -190,7 +197,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { activeActivity, remainingTime, startTimer } = usePersistentTimer();
 
   const moodColor =
-  mood > 66 ? '#22c55e' : mood > 33 ? '#eab308' : '#ef4444';
+    mood > 66 ? '#22c55e' : mood > 33 ? '#eab308' : '#ef4444';
 
   const pageVariants = {
     initial: { opacity: 0, x: '100%' },
@@ -287,28 +294,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     getQuote();
   }, []);
-
-  // useEffect(() => {
-  //   const fetchProfilePic = async () => {
-  //     try {
-  //       const userDocRef = doc(db, 'users', user.uid);
-  //       const userDocSnap = await getDoc(userDocRef);
-  //       if (userDocSnap.exists()) {
-  //         const data = userDocSnap.data();
-  //         if (data.profilePicUrl) {
-  //           setProfilePicUrl(data.profilePicUrl);
-  //         }
-  //       } else {
-  //         await setDoc(userDocRef, { profilePicUrl: '' });
-  //       }
-  //     } catch (error) {
-  //       console.error('Error fetching profile picture:', error);
-  //     }
-  //   };
-  //   fetchProfilePic();
-  // }, [user.uid, db]);
-
-
 
   const calculateStreak = (moodHistory: MoodEntry[]): number => {
     if (moodHistory.length === 0) return 0;
@@ -425,347 +410,364 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-const styles: { [key: string]: CSSProperties } = {
-  container: {
-    backgroundColor: 'black',
-    color: 'white',
-    minHeight: '100vh',
-    width: '100%',
-    margin: 0,
-    padding: 0,
-    boxSizing: 'border-box',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  content: {
-    width: '100%',
-    maxWidth: '480px',
-    padding: '1rem',
-    boxSizing: 'border-box',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '1.5rem',
-  },
-  userInfo: {
-    display: 'flex',
-    alignItems: 'center',
-  },
-  avatar: {
-    borderColor:moodColor,
-    borderRadius: '50%',
-    marginRight: '0.75rem',
-    objectFit: 'cover',
-    cursor: 'pointer',
-    border: "2px solid ",
-    height:'5rem',
-    width:'5rem',
-  },
-  welcomeText: {
-    fontSize: windowWidth < 768 ? '1rem' : '1.25rem',
-    fontWeight: '600',
-  },
-  userEmail: {
-    fontSize: '0.875rem',
-    color: '#9ca3af',
-  },
-  headerRight: {
-    display: 'flex',
-    alignItems: 'center',
-  },
-  notificationBadge: {
-    backgroundColor: '#22c55e',
-    color: 'black',
-    borderRadius: '9999px',
-    width: '2rem',
-    height: '2rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 'bold',
-    position: 'relative',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: '-0.25rem',
-    right: '-0.25rem',
-    width: '0.75rem',
-    height: '0.75rem',
-    backgroundColor: 'white',
-    borderRadius: '9999px',
-    border: '2px solid black',
-  },
-  logoutButton: {
-    backgroundColor: '#ef4444',
-    color: 'white',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '0.25rem',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    border: 'none',
-    cursor: 'pointer',
-    marginLeft: '0.5rem',
-  },
-  moodTracker: {
-    backgroundColor: '#bbf7d0',
-    borderRadius: '0.5rem',
-    padding: '1rem',
-    marginBottom: '1rem',
-  },
-  moodQuestion: {
-    color: 'black',
-    marginBottom: '0.5rem',
-    fontWeight: '500',
-  },
-  moodIcons: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '0.5rem',
-  },
-  moodSlider: {
-    width: '100%',
-    accentColor: moodColor,
-  },
-  quoteCard: {
-    backgroundColor: '#d8b4fe',
-    borderRadius: '0.5rem',
-    padding: '1rem',
-    marginBottom: '1rem',
-  },
-  quoteContent: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    marginBottom: '0.75rem',
-  },
-  quote: {
-    color: 'black',
-    fontWeight: '500',
-    fontSize: '0.875rem',
-    marginLeft: '0.5rem',
-  },
-  moodOverview: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '0.5rem',
-    color: 'black',
-    fontSize: '0.75rem',
-  },
-  moodOverviewItem: {
-    fontWeight: 'bold',
-  },
-  graphCard: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: '0.5rem',
-    padding: '1rem',
-    marginBottom: '1rem',
-  },
-  graphTitle: {
-    fontSize: '1.2rem',
-    fontWeight: 'bold',
-    marginBottom: '0.5rem',
-    color: 'black',
-  },
-  averages: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '1rem',
-    color: 'black',
-  },
-  graph: {
-    height: '200px',
-  },
-  activitiesHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem',
-  },
-  activitiesTitle: {
-    fontSize: windowWidth < 768 ? '1rem' : '1.125rem',
-    fontWeight: 'bold',
-  },
-  timeframeSelector: {
-    display: 'flex',
-    gap: '0.5rem',
-  },
-  timeframeButton: {
-    padding: '0.25rem 0.75rem',
-    borderRadius: '9999px',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  popup: {
-    position: 'fixed',
-    bottom: '20px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    padding: '10px 20px',
-    borderRadius: '5px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-    zIndex: 1000,
-  },
-  timerContainer: {
-    textAlign: 'center',
-    marginBottom: '1rem',
-    fontSize: '1.2rem',
-    fontWeight: 'bold',
-  },
-  avatarOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '2.5rem',
-    height: '2.5rem',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: '9999px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'white',
-    cursor: 'pointer',
-  },
-  avatarOverlayText: {
-    fontSize: '0.75rem',
-    fontWeight: 'bold',
-  },
-  confirmationPopup: {
-    position: 'fixed',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    backgroundColor: '#333',
-    color: 'white',
-    padding: '20px',
-    borderRadius: '10px',
-    zIndex: 1000,
-    textAlign: 'center',
-  },
-  confirmationButtons: {
-    display: 'flex',
-    justifyContent: 'space-around',
-    marginTop: '20px',
-  },
-  confirmButton: {
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '5px',
-    cursor: 'pointer',
-  },
-  cancelButton: {
-    backgroundColor: '#f44336',
-    color: 'white',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '5px',
-    cursor: 'pointer',
-  },
-};
+  const styles: { [key: string]: CSSProperties } = {
+    container: {
+      backgroundColor: 'black',
+      color: 'white',
+      minHeight: '100vh',
+      width: '100%',
+      margin: 0,
+      padding: 0,
+      boxSizing: 'border-box',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+      position: 'relative',
+    },
+    content: {
+      width: '100%',
+      maxWidth: '480px',
+      padding: '1rem',
+      boxSizing: 'border-box',
+    },
+    rightSidebar: {
+      position: 'absolute',
+      right: '1rem',
+      top: '4rem',
+      width: '300px',
+      maxHeight: '90vh',
+      overflowY: 'auto',
+    },
+    leftSidebar: {
+      position: 'absolute',
+      left: '1rem',
+      top: '4rem',
+      width: '300px',
+      maxHeight: '90vh',
+      overflowY: 'auto',
+    },
+    header: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: '1.5rem',
+    },
+    userInfo: {
+      display: 'flex',
+      alignItems: 'center',
+    },
+    avatar: {
+      borderColor:moodColor,
+      borderRadius: '50%',
+      marginRight: '0.75rem',
+      objectFit: 'cover',
+      cursor: 'pointer',
+      border: "2px solid ",
+      height:'5rem',
+      width:'5rem',
+    },
+    welcomeText: {
+      fontSize: windowWidth < 768 ? '1rem' : '1.25rem',
+      fontWeight: '600',
+    },
+    userEmail: {
+      fontSize: '0.875rem',
+      color: '#9ca3af',
+    },
+    headerRight: {
+      display: 'flex',
+      alignItems: 'center',
+    },
+    notificationBadge: {
+      backgroundColor: '#22c55e',
+      color: 'black',
+      borderRadius: '9999px',
+      width: '2rem',
+      height: '2rem',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: 'bold',
+      position: 'relative',
+    },
+    notificationDot: {
+      position: 'absolute',
+      top: '-0.25rem',
+      right: '-0.25rem',
+      width: '0.75rem',
+      height: '0.75rem',
+      backgroundColor: 'white',
+      borderRadius: '9999px',
+      border: '2px solid black',
+    },
+    logoutButton: {
+      backgroundColor: '#ef4444',
+      color: 'white',
+      padding: '0.25rem 0.75rem',
+      borderRadius: '0.25rem',
+      fontSize: '0.875rem',
+      fontWeight: '500',
+      border: 'none',
+      cursor: 'pointer',
+      marginLeft: '0.5rem',
+    },
+    moodTracker: {
+      backgroundColor: '#bbf7d0',
+      borderRadius: '0.5rem',
+      padding: '1rem',
+      marginBottom: '1rem',
+    },
+    moodQuestion: {
+      color: 'black',
+      marginBottom: '0.5rem',
+      fontWeight: '500',
+    },
+    moodIcons: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: '0.5rem',
+    },
+    moodSlider: {
+      width: '100%',
+      accentColor: moodColor,
+    },
+    quoteCard: {
+      backgroundColor: '#d8b4fe',
+      borderRadius: '0.5rem',
+      padding: '1rem',
+      marginBottom: '1rem',
+    },
+    quoteContent: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      marginBottom: '0.75rem',
+    },
+    quote: {
+      color: 'black',
+      fontWeight: '500',
+      fontSize: '0.875rem',
+      marginLeft: '0.5rem',
+    },
+    moodOverview: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '0.5rem',
+      color: 'black',
+      fontSize: '0.75rem',
+    },
+    moodOverviewItem: {
+      fontWeight: 'bold',
+    },
+    graphCard: {
+      backgroundColor: '#f0f0f0',
+      borderRadius: '0.5rem',
+      padding: '1rem',
+      marginBottom: '1rem',
+    },
+    graphTitle: {
+      fontSize: '1.2rem',
+      fontWeight: 'bold',
+      marginBottom: '0.5rem',
+      color: 'black',
+    },
+    averages: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: '1rem',
+      color: 'black',
+    },
+    graph: {
+      height: '200px',
+    },
+    activitiesHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '1rem',
+    },
+    activitiesTitle: {
+      fontSize: windowWidth < 768 ? '1rem' : '1.125rem',
+      fontWeight: 'bold',
+    },
+    timeframeSelector: {
+      display: 'flex',
+      gap: '0.5rem',
+    },
+    timeframeButton: {
+      padding: '0.25rem 0.75rem',
+      borderRadius: '9999px',
+      fontSize: '0.875rem',
+      fontWeight: '500',
+      border: 'none',
+      cursor: 'pointer',
+    },
+    popup: {
+      position: 'fixed',
+      bottom: '20px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      backgroundColor: '#4CAF50',
+      color: 'white',
+      padding: '10px 20px',
+      borderRadius: '5px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+      zIndex: 1000,
+    },
+    timerContainer: {
+      textAlign: 'center',
+      marginBottom: '1rem',
+      fontSize: '1.2rem',
+      fontWeight: 'bold',
+    },
+    avatarOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '2.5rem',
+      height: '2.5rem',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      borderRadius: '9999px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: 'white',
+      cursor: 'pointer',
+    },
+    avatarOverlayText: {
+      fontSize: '0.75rem',
+      fontWeight: 'bold',
+    },
+    confirmationPopup: {
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      backgroundColor: '#333',
+      color: 'white',
+      padding: '20px',
+      borderRadius: '10px',
+      zIndex: 1000,
+      textAlign: 'center',
+    },
+    confirmationButtons: {
+      display: 'flex',
+      justifyContent: 'space-around',
+      marginTop: '20px',
+    },
+    confirmButton: {
+      backgroundColor: '#4CAF50',
+      color: 'white',
+      border: 'none',
+      padding: '10px 20px',
+      borderRadius: '5px',
+      cursor: 'pointer',
+    },
+    cancelButton: {
+      backgroundColor: '#f44336',
+      color: 'white',
+      border: 'none',
+      padding: '10px 20px',
+      borderRadius: '5px',
+      cursor: 'pointer',
+    },
+  };
 
-const handleLogout = async () => {
-  await onLogout();
-  navigate('/login');
-};
+  const handleLogout = async () => {
+    await onLogout();
+    navigate('/login');
+  };
 
-const handleMoodChange = (newMood: number) => {
-  setMood(newMood);
-  setIsSliding(true);
-};
+  const handleMoodChange = (newMood: number) => {
+    setMood(newMood);
+    setIsSliding(true);
+  };
 
-const handleMoodChangeEnd = async () => {
-  setIsSliding(false);
-  const now = new Date();
-  try {
-    const moodsRef = collection(db, 'moods', user.uid, 'entries');
-    await addDoc(moodsRef, {
-      mood: mood,
-      timestamp: serverTimestamp(),
-    });
-    console.log('Mood data sent to Firebase successfully');
-    setPopupMessage('Mood recorded!');
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 2000);
-
-    setLastRecordTime(now);
-    const updatedMoodHistory = [
-      {
+  const handleMoodChangeEnd = async () => {
+    setIsSliding(false);
+    const now = new Date();
+    try {
+      const moodsRef = collection(db, 'moods', user.uid, 'entries');
+      await addDoc(moodsRef, {
         mood: mood,
-        timestamp: Timestamp.fromDate(now),
-      },
-      ...moodHistory,
-    ];
-    setMoodHistory(updatedMoodHistory);
+        timestamp: serverTimestamp(),
+      });
+      console.log('Mood data sent to Firebase successfully');
+      setPopupMessage('Mood recorded!');
+      setShowPopup(true);
+      setTimeout(() => setShowPopup(false), 2000);
 
-    const userStreak = calculateStreak(updatedMoodHistory);
-    setStreak(userStreak);
-  } catch (error) {
-    console.error('Error sending mood data to Firebase:', error);
-    setPopupMessage('Failed to record mood. Please try again.');
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 3000);
-  }
-};
-const profilePicUrl=  mood > 80 ? ct :mood > 66 ? sm : mood > 50 ? sd: mood > 25 ?dn : nt;
+      setLastRecordTime(now);
+      const updatedMoodHistory = [
+        {
+          mood: mood,
+          timestamp: Timestamp.fromDate(now),
+        },
+        ...moodHistory,
+      ];
+      setMoodHistory(updatedMoodHistory);
 
-return (
-  <motion.div
-    style={styles.container}
-    initial="initial"
-    animate="in"
-    exit="out"
-    variants={pageVariants}
-    transition={pageTransition}
-  >
+      const userStreak = calculateStreak(updatedMoodHistory);
+      setStreak(userStreak);
+    } catch (error) {
+      console.error('Error sending mood data to Firebase:', error);
+      setPopupMessage('Failed to record mood. Please try again.');
+      setShowPopup(true);
+      setTimeout(() => setShowPopup(false), 3000);
+    }
+  };
 
-  <div style={styles.container}>
-    <div style={styles.content}>
-      <div style={styles.header}>
-        <div style={styles.userInfo}>
-          <div style={{ position: 'relative' }}>
-            <img
-              src={profilePicUrl} 
-              
-              alt="User"
-              style={styles.avatar}
-              onMouseEnter={() => setIsHoveringAvatar(true)}
-              onMouseLeave={() => setIsHoveringAvatar(false)}
-              onClick={handleProfileClick}
-            />
-            {isHoveringAvatar && (
-              <div
-                style={styles.avatarOverlay}
+  const profilePicUrl=  mood > 80 ? ct :mood > 66 ? sm : mood > 50 ? sd: mood > 25 ?dn : nt;
+
+  return (
+    <motion.div
+      style={styles.container}
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+    >
+      <div style={styles.content}>
+        <div style={styles.header}>
+          <div style={styles.userInfo}>
+            <div style={{ position: 'relative' }}>
+              <img
+                src={profilePicUrl} 
+                alt="User"
+                style={styles.avatar}
+                onMouseEnter={() => setIsHoveringAvatar(true)}
+                onMouseLeave={() => setIsHoveringAvatar(false)}
                 onClick={handleProfileClick}
-              >
-                <span style={styles.avatarOverlayText}>
-                  View Profile
-                </span>
-              </div>
-            )}
+              />
+              {isHoveringAvatar && (
+                <div
+                  style={styles.avatarOverlay}
+                  onClick={handleProfileClick}
+                >
+                  <span style={styles.avatarOverlayText}>
+                    View Profile
+                  </span>
+                </div>
+              )}
+            </div>
+            <div>
+              <h1 style={styles.welcomeText}>Welcome back!</h1>
+              <p style={styles.userEmail}>{user.email}</p>
+            </div>
           </div>
-          <div>
-            <h1 style={styles.welcomeText}>Welcome back!</h1>
-            <p style={styles.userEmail}>{user.email}</p>
+          <div style={styles.headerRight}>
+            <div style={styles.notificationBadge}>
+              {streak}
+              <div style={styles.notificationDot}></div>
+            </div>
+            <button style={styles.logoutButton} onClick={handleLogout}>
+              Logout
+            </button>
           </div>
         </div>
-        <div style={styles.headerRight}>
-          <div style={styles.notificationBadge}>
-            {streak}
-            <div style={styles.notificationDot}></div>
-          </div>
-          <button style={styles.logoutButton} onClick={handleLogout}>
-            Logout
-          </button>
-        </div>
-      </div>
+
+        <FriendSearch />
 
         {nextMoodRecordTime && (
           <div style={styles.timerContainer}>
@@ -773,57 +775,57 @@ return (
           </div>
         )}
 
-      <div style={styles.moodTracker}>
-        <p style={styles.moodQuestion}>How are you feeling today?</p>
-        <div style={styles.moodIcons}>
-          <Frown
-          color='#0e0e0f'
-            fill={mood <= 33 ? '#ef4444' : '#9ca3af'}
-            size={24}
-          />
-          <Meh
-          color='#020202'
-            fill={mood > 33 && mood <= 66 ? '#eab308' : '#9ca3af'}
-            size={24}
-          />
-          <Smile
-          color='#08090a'
-            fill={mood > 66 ? '#22c55e' : '#9ca3af'}
-            size={24}
+        <div style={styles.moodTracker}>
+          <p style={styles.moodQuestion}>How are you feeling today?</p>
+          <div style={styles.moodIcons}>
+            <Frown
+              color='#0e0e0f'
+              fill={mood <= 33 ? '#ef4444' : '#9ca3af'}
+              size={24}
+            />
+            <Meh
+              color='#020202'
+              fill={mood > 33 && mood <= 66 ? '#eab308' : '#9ca3af'}
+              size={24}
+            />
+            <Smile
+              color='#08090a'
+              fill={mood > 66 ? '#22c55e' : '#9ca3af'}
+              size={24}
+            />
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={mood}
+            onChange={(e) => handleMoodChange(parseInt(e.target.value))}
+            onMouseUp={handleMoodChangeEnd}
+            onTouchEnd={handleMoodChangeEnd}
+            style={styles.moodSlider}
           />
         </div>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={mood}
-          onChange={(e) => handleMoodChange(parseInt(e.target.value))}
-          onMouseUp={handleMoodChangeEnd}
-          onTouchEnd={handleMoodChangeEnd}
-          style={styles.moodSlider}
-        />
-      </div>
 
-      <div style={styles.quoteCard}>
-        <div style={styles.quoteContent}>
-          <Leaf color="#22c55e" size={70} />
-          <p style={styles.quote}>{quote}</p>
+        <div style={styles.quoteCard}>
+          <div style={styles.quoteContent}>
+            <Leaf color="#22c55e" size={70} />
+            <p style={styles.quote}>{quote}</p>
+          </div>
+          <div style={styles.moodOverview}>
+            <div>
+              <p style={styles.moodOverviewItem}>Mood overview</p>
+              <p>Positive</p>
+            </div>
+            <div>
+              <p style={styles.moodOverviewItem}>Gratitude journal</p>
+              <p>Mindfulness</p>
+            </div>
+            <div>
+              <p style={styles.moodOverviewItem}>Stress level</p>
+              <p>Calmness</p>
+            </div>
+          </div>
         </div>
-        <div style={styles.moodOverview}>
-          <div>
-            <p style={styles.moodOverviewItem}>Mood overview</p>
-            <p>Positive</p>
-          </div>
-          <div>
-            <p style={styles.moodOverviewItem}>Gratitude journal</p>
-            <p>Mindfulness</p>
-          </div>
-          <div>
-            <p style={styles.moodOverviewItem}>Stress level</p>
-            <p>Calmness</p>
-          </div>
-        </div>
-      </div>
 
         <div style={styles.graphCard}>
           <h2 style={styles.graphTitle}>Mood History</h2>
@@ -875,6 +877,12 @@ return (
         />
         <ChoiceActivities />
       </div>
+      <div style={styles.leftSidebar}>
+        <PokeLists />
+      </div>
+      <div style={styles.rightSidebar}>
+        <FriendRequests />
+      </div>
       {showPopup && <div style={styles.popup}>{popupMessage}</div>}
       {showActivityConfirmation && (
         <div style={styles.confirmationPopup}>
@@ -890,7 +898,6 @@ return (
           </div>
         </div>
       )}
-      </div>
     </motion.div>
   );
 };

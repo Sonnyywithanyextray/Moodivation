@@ -8,6 +8,8 @@ import {
   getDocs,
   Timestamp,
   where,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import useSpotifyAuth from "../hooks/useSpotifyAuth";
@@ -17,11 +19,13 @@ import {
   Smile,
   Meh,
   Frown,
+  Leaf,
   User as UserIcon,
   Music,
   Settings,
   LogOut,
 } from 'lucide-react';
+import { getProfilePicUrl } from '../utils/profilePicUtils';
 
 interface ProfileProps {
   user: User;
@@ -43,9 +47,16 @@ interface SpotifyCurrentlyPlaying {
   };
 }
 
+const MOOD_CATEGORIES = [
+  { name: 'Negative', range: [0, 50], color: '#ef4444' },
+  { name: 'Neutral', range: [51, 80], color: '#eab308' },
+  { name: 'Positive', range: [81, 100], color: '#22c55e' },
+];
+
 const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
   const [mood, setMood] = useState(50);
   const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
+  const [aggregatedMoods, setAggregatedMoods] = useState<{ name: string; value: number }[]>([]);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [profilePicUrl, setProfilePicUrl] = useState<string>('/api/placeholder/40/40');
   const [currentlyPlaying, setCurrentlyPlaying] = useState<SpotifyCurrentlyPlaying | null>(null);
@@ -55,6 +66,10 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
   const [accessToken, setAccessToken] = useState(
     localStorage.getItem("spotify_access_token")
   );
+  const [popupMessage, setPopupMessage] = useState<string>('');
+  const [showPopup, setShowPopup] = useState<boolean>(false);
+  const [selectedActivity, setSelectedActivity] = useState<any>(null);
+  const [showActivityConfirmation, setShowActivityConfirmation] = useState<boolean>(false);
 
   const pageVariants = {
     initial: { opacity: 0, x: '100%' },
@@ -87,7 +102,17 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
         setMoodHistory(moodData);
         if (moodData.length > 0) {
           setMood(moodData[0].mood);
+          const newProfilePicUrl = getProfilePicUrl(moodData[0].mood);
+          setProfilePicUrl(newProfilePicUrl);
         }
+
+        const categoryCounts = MOOD_CATEGORIES.map(category => {
+          const count = moodData.filter(entry => 
+            entry.mood >= category.range[0] && entry.mood <= category.range[1]
+          ).length;
+          return { name: category.name, value: count };
+        });
+        setAggregatedMoods(categoryCounts);
       } catch (error) {
         console.error("Error fetching mood data:", error);
       }
@@ -139,16 +164,38 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
     }
   }, [accessToken]);
 
-  const graphData = moodHistory
-    .slice(0, 30)
-    .map((entry) => ({
-      date: entry.timestamp.toDate().toLocaleDateString(),
-      mood: entry.mood,
-    }))
-    .reverse();
+  const getColor = (categoryName: string) => {
+    const category = MOOD_CATEGORIES.find(cat => cat.name === categoryName);
+    return category ? category.color : '#8884d8';
+  };
 
-  const moodColor = mood > 66 ? "#22c55e" : mood > 33 ? "#eab308" : "#ef4444";
-  const getColor = (index: number) => moodColor;
+  const handleLogout = async () => {
+    await onLogout();
+  };
+
+  const handleProfileClick = () => {
+    // Navigation logic if applicable
+  };
+
+  const handleConfirmActivity = async () => {
+    if (selectedActivity) {
+      // Assuming you have a startTimer function or similar
+      // startTimer(selectedActivity.name, selectedActivity.timeInSeconds);
+      setShowActivityConfirmation(false);
+
+      try {
+        const activitiesRef = collection(db, 'activities', user.uid, 'completed');
+        await addDoc(activitiesRef, {
+          name: selectedActivity.name,
+          timestamp: serverTimestamp(),
+        });
+        setCompletedActivities(prev => prev + 1);
+        console.log('Activity recorded:', selectedActivity.name, 'for user:', user.uid);
+      } catch (error) {
+        console.error('Error recording completed activity:', error);
+      }
+    }
+  };
 
   const styles: { [key: string]: CSSProperties } = {
     container: {
@@ -200,9 +247,15 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
       padding: '1rem',
       marginBottom: '1rem',
     },
+
     profileCard: {
       backgroundColor: 'rgb(216, 180, 254)',
       color: 'black',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      padding: '2rem',
+      justifyContent: 'flex-start', // Add this line
     },
     goalsCard: {
       backgroundColor: 'rgb(187, 247, 208)',
@@ -217,23 +270,29 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
     },
     profileInfo: {
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
-      marginBottom: '1rem',
+      width: '100%',
+      marginBottom: '1rem', // Add this line
     },
     profileImage: {
-      width: '4rem',
-      height: '4rem',
+      width: '10rem',
+      height: '10rem',
       borderRadius: '50%',
-      marginRight: '1rem',
+      marginBottom: '0.5rem', // Reduce this value
+      cursor: 'pointer',
     },
     profileName: {
-      fontSize: '1.25rem',
+      fontSize: '1.5rem',
       fontWeight: 'bold',
-      marginBottom: '0.25rem',
+      marginBottom: '0.25rem', // Reduce this value
+      textAlign: 'center',
     },
     profileEmail: {
-      fontSize: '0.875rem',
+      fontSize: '1rem',
       color: '#4a4a4a',
+      marginBottom: '0.5rem', // Reduce this value
+      textAlign: 'center',
     },
     sectionTitle: {
       fontSize: '1.125rem',
@@ -300,7 +359,71 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
     },
     activitiesText: {
       textAlign: 'center',
-      marginTop: '1rem',
+      fontSize: '1rem',
+      marginTop: '0',
+    },
+    popup: {
+      position: 'fixed',
+      bottom: '20px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      backgroundColor: '#4CAF50',
+      color: 'white',
+      padding: '10px 20px',
+      borderRadius: '5px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+      zIndex: 1000,
+    },
+    avatarOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '2.5rem',
+      height: '2.5rem',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      borderRadius: '9999px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: 'white',
+      cursor: 'pointer',
+    },
+    avatarOverlayText: {
+      fontSize: '0.75rem',
+      fontWeight: 'bold',
+    },
+    confirmationPopup: {
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      backgroundColor: '#333',
+      color: 'white',
+      padding: '20px',
+      borderRadius: '10px',
+      zIndex: 1000,
+      textAlign: 'center',
+    },
+    confirmationButtons: {
+      display: 'flex',
+      justifyContent: 'space-around',
+      marginTop: '20px',
+    },
+    confirmButton: {
+      backgroundColor: '#4CAF50',
+      color: 'white',
+      border: 'none',
+      padding: '10px 20px',
+      borderRadius: '5px',
+      cursor: 'pointer',
+    },
+    cancelButton: {
+      backgroundColor: '#f44336',
+      color: 'white',
+      border: 'none',
+      padding: '10px 20px',
+      borderRadius: '5px',
+      cursor: 'pointer',
     },
   };
 
@@ -319,34 +442,31 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
             <h1 style={styles.headerTitle}>Profile</h1>
             <nav>
               <a href="/" style={styles.navLink}>Home</a>
-              <a href="/" style={styles.navLink}>Activities</a>
               <span style={{ ...styles.navLink, fontWeight: 'bold' }}>Profile</span>
             </nav>
           </div>
           <div style={styles.headerRight}>
-            <button style={styles.logoutButton} onClick={onLogout}>
+            <button style={styles.logoutButton} onClick={handleLogout}>
               Logout
             </button>
           </div>
         </header>
-
         <div style={{...styles.card, ...styles.profileCard}}>
-          <div style={styles.profileInfo}>
-            <img
-              src={profilePicUrl}
-              alt="Profile"
-              style={styles.profileImage}
-            />
-            <div>
-              <h2 style={styles.profileName}>{user.displayName || 'User'}</h2>
-              <p style={styles.profileEmail}>{user.email}</p>
-            </div>
-          </div>
-          <p style={styles.activitiesText}>
-            Engaged in {completedActivities} {completedActivities === 1 ? 'activity' : 'activities'} this week
-          </p>
-        </div>
-
+    <div style={styles.profileInfo}>
+      <img
+        src={profilePicUrl}
+        alt="Profile"
+        style={styles.profileImage}
+        onClick={handleProfileClick}
+      />
+      <h2 style={styles.profileName}>{user.displayName || 'User'}</h2>
+      <p style={styles.profileEmail}>{user.email}</p>
+      <p style={styles.activitiesText}>
+        Engaged in {completedActivities} {completedActivities === 1 ? 'activity' : 'activities'} this week
+      </p>
+    </div>
+  </div>   
+        
         <div style={{...styles.card, ...styles.goalsCard}}>
           <h3 style={styles.sectionTitle}>Set Your Goals</h3>
           <label>Daily Meditation (minutes)</label>
@@ -364,52 +484,24 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie
-                  data={graphData}
-                  dataKey="mood"
-                  nameKey="date"
+                  data={aggregatedMoods}
+                  dataKey="value"
+                  nameKey="name"
                   cx="50%"
                   cy="50%"
                   outerRadius={60}
                   labelLine={false}
                   label={({ name, percent }) =>
-                    `${(percent * 100).toFixed(0)}%`
+                    `${name}: ${(percent * 100).toFixed(0)}%`
                   }
                 >
-                  {graphData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getColor(index)} />
+                  {aggregatedMoods.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
                   ))}
                 </Pie>
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div style={{...styles.card, ...styles.defaultCard}}>
-          <h3 style={{...styles.sectionTitle, color: 'white'}}>Spotify Integration</h3>
-          <div style={styles.spotifyContainer}>
-            {accessToken ? (
-              <Spotify accessToken={accessToken} />
-            ) : (
-              <button onClick={login} style={styles.spotifyButton}>
-                Connect to Spotify
-              </button>
-            )}
-            {currentlyPlaying && (
-              <div style={styles.currentlyPlaying}>
-                <p>
-                  Now Playing: {currentlyPlaying.item.name} by{" "}
-                  {currentlyPlaying.item.artists
-                    .map((artist) => artist.name)
-                    .join(", ")}
-                </p>
-                <img
-                  src={currentlyPlaying.item.album.images[0].url}
-                  alt="Album cover"
-                  style={styles.albumCover}
-                />
-              </div>
-            )}
           </div>
         </div>
 
@@ -422,6 +514,23 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
           </ul>
         </div>
       </div>
+
+      {showPopup && <div style={styles.popup}>{popupMessage}</div>}
+      
+      {showActivityConfirmation && (
+        <div style={styles.confirmationPopup}>
+          <p>Are you sure you want to start this activity?</p>
+          <p>{selectedActivity?.name} - {selectedActivity?.duration}</p>
+          <div style={styles.confirmationButtons}>
+            <button style={styles.confirmButton} onClick={handleConfirmActivity}>
+              Yes
+            </button>
+            <button style={styles.cancelButton} onClick={() => setShowActivityConfirmation(false)}>
+              No
+            </button>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
