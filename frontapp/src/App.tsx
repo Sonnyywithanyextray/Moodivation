@@ -8,6 +8,7 @@ import Register from './App/Authentication/Register';
 import Dashboard from './App/dashboard';
 import Profile from './App/profile';
 import Callback from './components/callback';
+import JournalApp from './App/Journal';
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const location = useLocation();
@@ -42,6 +43,8 @@ function App() {
             )
           }
         />
+         <Route path="/callback" element={<Callback/>} />
+         <Route path="/journal" element={<JournalApp/>} />
         <Route
           path="/profile"
           element={

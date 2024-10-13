@@ -8,15 +8,18 @@ import {
   Music
 } from 'lucide-react';
 
+import { useNavigate } from 'react-router-dom';
 const ChoiceActivities: React.FC = () => {
+
   const activities = [
-    { icon: <BookOpen size={32} />, name: 'Read stories' },
-    { icon: <Headphones size={32} />, name: 'Listen to music' },
-    { icon: <Airplay size={32} />, name: 'Breather' },
-    { icon: <PenTool size={32} />, name: 'Draw' },
-    { icon: <Book size={32} />, name: 'Journal' },
-    { icon: <Music size={32} />, name: 'Dance' }
+    { icon: <BookOpen size={32} />, name: 'Read stories', component: "/journal" },
+    { icon: <Headphones size={32} />, name: 'Listen to music', component: "" },
+    { icon: <Airplay size={32} />, name: 'Breather', component:""},
+    { icon: <PenTool size={32} />, name: 'Draw', component: "" },
+    { icon: <Book size={32} />, name: 'Journal', component: "" },
+    { icon: <Music size={32} />, name: 'Dance', component: "" }
   ];
+  const navigate = useNavigate();
 
   const styles: { [key: string]: CSSProperties } = {
     header: {
@@ -50,6 +53,7 @@ const ChoiceActivities: React.FC = () => {
       padding: '1rem',
       textAlign: 'center',
       color: '#000',
+      cursor: 'pointer',  // Add cursor pointer for better UX
     },
     activityIcon: {
       marginBottom: '5px',
@@ -60,12 +64,13 @@ const ChoiceActivities: React.FC = () => {
     }
   };
 
+  
   return (
     <div>
       <div style={styles.header}>Engage in activities of choice</div>
       <div style={styles.activityList}>
         {activities.map((activity, index) => (
-          <div key={index} style={styles.activityItem}>
+          <div onClick={() => navigate(activity.component)}key={index} style={styles.activityItem}>
             <div style={styles.activityIcon}>{activity.icon}</div>
             <span style={styles.activityName}>{activity.name}</span>
           </div>
