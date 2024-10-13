@@ -30,9 +30,6 @@ import {
   getDocs,
   serverTimestamp,
   Timestamp,
-  doc,
-  getDoc,
-  setDoc,
   where,
 } from 'firebase/firestore';
 import {

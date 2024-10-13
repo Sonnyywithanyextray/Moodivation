@@ -12,13 +12,13 @@ import { useNavigate } from 'react-router-dom';
 const ChoiceActivities: React.FC = () => {
 
   const activities = [
-    { icon: <BookOpen size={32} />, name: 'Read stories', component: "/journal" },
-    { icon: <Headphones size={32} />, name: 'Listen to music', component: "" },
-    { icon: <Airplay size={32} />, name: 'Breather', component:""},
-    { icon: <PenTool size={32} />, name: 'Draw', component: "" },
-    { icon: <Book size={32} />, name: 'Journal', component: "" },
-    { icon: <Music size={32} />, name: 'Dance', component: "" }
-  ];
+    { icon: <BookOpen size={32} />, name: 'Read stories', component: "https://books.google.com" }, 
+  { icon: <Headphones size={32} />, name: 'Listen to music', component: "https://www.spotify.com" },
+  { icon: <Airplay size={32} />, name: 'Breather', component: "https://www.headspace.com" },
+  { icon: <PenTool size={32} />, name: 'Draw', component: "https://www.deviantart.com" }, 
+  { icon: <Book size={32} />, name: 'Journal', component: "/journal" }, 
+  { icon: <Music size={32} />, name: 'Dance', component: "https://www.youtube.com/results?search_query=dance+music" } 
+];
   const navigate = useNavigate();
 
   const styles: { [key: string]: CSSProperties } = {
@@ -70,7 +70,14 @@ const ChoiceActivities: React.FC = () => {
       <div style={styles.header}>Engage in activities of choice</div>
       <div style={styles.activityList}>
         {activities.map((activity, index) => (
-          <div onClick={() => navigate(activity.component)}key={index} style={styles.activityItem}>
+           <div
+           key={index} onClick={() => {
+             if (activity.component.startsWith('http')) {
+               window.open(activity.component, "_blank"); // Open external link in a new tab
+             } else {
+               navigate(activity.component); // Navigate to internal route
+             }
+           }}style={styles.activityItem}>
             <div style={styles.activityIcon}>{activity.icon}</div>
             <span style={styles.activityName}>{activity.name}</span>
           </div>
