@@ -1,9 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  CSSProperties,
-  useRef,
-} from 'react';
+import React, { useState, useEffect, CSSProperties } from 'react';
 import {
   Smile,
   Meh,
@@ -38,6 +33,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  where,
 } from 'firebase/firestore';
 import {
   LineChart,
@@ -105,7 +101,7 @@ const getRecommendedActivities = (averageMood: number): Activity[] => {
 const Activities: React.FC<{ 
   activities: Activity[], 
   onActivityClick: (activity: Activity) => void,
-  activeActivity: Activity | null,
+  activeActivity: { activityName: string } | null,
   remainingTime: number
 }> = ({ activities, onActivityClick, activeActivity, remainingTime }) => {
   const styles: { [key: string]: CSSProperties } = {
@@ -155,14 +151,14 @@ const Activities: React.FC<{
           key={index} 
           style={{
             ...styles.activityItem,
-            ...(activeActivity?.name === activity.name ? styles.activeActivity : {})
+            ...(activeActivity?.activityName === activity.name ? styles.activeActivity : {})
           }}
           onClick={() => onActivityClick(activity)}
         >
           <div style={styles.activityIcon}>{activity.icon}</div>
           <span style={styles.activityName}>{activity.name}</span>
           <span style={styles.activityDuration}>
-            {activeActivity?.name === activity.name ? formatTime(remainingTime) : activity.duration}
+            {activeActivity?.activityName === activity.name ? formatTime(remainingTime) : activity.duration}
           </span>
         </div>
       ))}
@@ -181,19 +177,51 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isSliding, setIsSliding] = useState(false);
   const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
   const [lastRecordTime, setLastRecordTime] = useState<Date | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<string>('');
+  const [nextMoodRecordTime, setNextMoodRecordTime] = useState<string>('');
   const [streak, setStreak] = useState(0);
   const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
   const [quote, setQuote] = useState<string>('Loading quote...');
   const [selectedTimeframe, setSelectedTimeframe] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [showActivityConfirmation, setShowActivityConfirmation] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
-  const [activeActivity, setActiveActivity] = useState<Activity | null>(null);
-  const [remainingTime, setRemainingTime] = useState<number>(0);
+  const [completedActivities, setCompletedActivities] = useState<number>(0);
 
   const navigate = useNavigate();
   const db = getFirestore();
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const { activeActivity, remainingTime, startTimer } = usePersistentTimer();
+
+  const moodColor =
+  mood > 66 ? '#22c55e' : mood > 33 ? '#eab308' : '#ef4444';
+
+  const pageVariants = {
+    initial: { opacity: 0, x: '100%' },
+    in: { opacity: 1, x: 0 },
+    out: { opacity: 0, x: '-100%' }
+  };
+
+  const pageTransition = {
+    type: 'tween',
+    ease: 'anticipate',
+    duration: 0.5
+  };
+
+  useEffect(() => {
+    const fetchCompletedActivities = async () => {
+      try {
+        const activitiesRef = collection(db, 'activities', user.uid, 'completed');
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        const q = query(activitiesRef, where('timestamp', '>=', oneWeekAgo));
+        const querySnapshot = await getDocs(q);
+        setCompletedActivities(querySnapshot.size);
+      } catch (error) {
+        console.error('Error fetching completed activities:', error);
+      }
+    };
+
+    fetchCompletedActivities();
+  }, [user.uid, db]);
 
   useEffect(() => {
     console.log("Current user:", user);
@@ -241,9 +269,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         if (diff > 0) {
           const hours = Math.floor(diff / (60 * 60 * 1000));
           const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
-          setTimeRemaining(`${hours}h ${minutes}m`);
+          setNextMoodRecordTime(`${hours}h ${minutes}m`);
         } else {
-          setTimeRemaining('');
+          setNextMoodRecordTime('');
           setLastRecordTime(null);
         }
       }
@@ -335,53 +363,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     return streak;
   };
 
-  const moodColor =
-    mood > 66 ? '#22c55e' : mood > 33 ? '#eab308' : '#ef4444';
-
-  const handleLogout = async () => {
-    await onLogout();
-    navigate('/login');
-  };
-
-  const handleMoodChange = (newMood: number) => {
-    setMood(newMood);
-    setIsSliding(true);
-  };
-
-  const handleMoodChangeEnd = async () => {
-    setIsSliding(false);
-    const now = new Date();
-    try {
-      const moodsRef = collection(db, 'moods', user.uid, 'entries');
-      await addDoc(moodsRef, {
-        mood: mood,
-        timestamp: serverTimestamp(),
-      });
-      console.log('Mood data sent to Firebase successfully');
-      setPopupMessage('Mood recorded!');
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 2000);
-  
-      setLastRecordTime(now);
-      const updatedMoodHistory = [
-        {
-          mood: mood,
-          timestamp: Timestamp.fromDate(now),
-        },
-        ...moodHistory,
-      ];
-      setMoodHistory(updatedMoodHistory);
-  
-      const userStreak = calculateStreak(updatedMoodHistory);
-      setStreak(userStreak);
-    } catch (error) {
-      console.error('Error sending mood data to Firebase:', error);
-      setPopupMessage('Failed to record mood. Please try again.');
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
-    }
-  };
-  
   const calculateAverages = () => {
     const now = new Date();
     const oneDay = 24 * 60 * 60 * 1000;
@@ -399,59 +380,69 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
 
     const dailyAvg =
-    dailyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
-      dailyMoods.length || 0;
-  const weeklyAvg =
-    weeklyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
-      weeklyMoods.length || 0;
-  const monthlyAvg =
-    monthlyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
-      monthlyMoods.length || 0;
+      dailyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
+        dailyMoods.length || 0;
+    const weeklyAvg =
+      weeklyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
+        weeklyMoods.length || 0;
+    const monthlyAvg =
+      monthlyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
+        monthlyMoods.length || 0;
 
-  return { dailyAvg, weeklyAvg, monthlyAvg };
-};
+    return { dailyAvg, weeklyAvg, monthlyAvg };
+  };
 
-const averages = calculateAverages();
+  const averages = calculateAverages();
 
-const graphData = moodHistory
-  .slice(0, 30)
-  .map((entry) => ({
-    date: entry.timestamp.toDate().toLocaleString(),
-    mood: entry.mood,
-  }))
-  .reverse();
+  const graphData = moodHistory
+    .slice(0, 30)
+    .map((entry) => ({
+      date: entry.timestamp.toDate().toLocaleString(),
+      mood: entry.mood,
+    }))
+    .reverse();
 
-const handleProfileClick = () => {
-  navigate('/profile');
-};
+  const handleProfileClick = () => {
+    navigate('/profile');
+  };
 
-const getAverageForTimeframe = (timeframe: 'daily' | 'weekly' | 'monthly') => {
-  switch (timeframe) {
-    case 'daily':
-      return averages.dailyAvg;
-    case 'weekly':
-      return averages.weeklyAvg;
-    case 'monthly':
-      return averages.monthlyAvg;
-    default:
-      return averages.dailyAvg;
-  }
-};
+  const getAverageForTimeframe = (timeframe: 'daily' | 'weekly' | 'monthly') => {
+    switch (timeframe) {
+      case 'daily':
+        return averages.dailyAvg;
+      case 'weekly':
+        return averages.weeklyAvg;
+      case 'monthly':
+        return averages.monthlyAvg;
+      default:
+        return averages.dailyAvg;
+    }
+  };
 
-const recommendedActivities = getRecommendedActivities(getAverageForTimeframe(selectedTimeframe));
+  const recommendedActivities = getRecommendedActivities(getAverageForTimeframe(selectedTimeframe));
 
-const handleActivityClick = (activity: Activity) => {
-  setSelectedActivity(activity);
-  setShowActivityConfirmation(true);
-};
+  const handleActivityClick = (activity: Activity) => {
+    setSelectedActivity(activity);
+    setShowActivityConfirmation(true);
+  };
 
-const handleConfirmActivity = () => {
-  if (selectedActivity) {
-    setActiveActivity(selectedActivity);
-    setRemainingTime(selectedActivity.timeInSeconds);
-    setShowActivityConfirmation(false);
-  }
-};
+  const handleConfirmActivity = async () => {
+    if (selectedActivity) {
+      startTimer(selectedActivity.name, selectedActivity.timeInSeconds);
+      setShowActivityConfirmation(false);
+
+      try {
+        const activitiesRef = collection(db, 'activities', user.uid, 'completed');
+        await addDoc(activitiesRef, {
+          name: selectedActivity.name,
+          timestamp: serverTimestamp(),
+        });
+        setCompletedActivities(prev => prev + 1);
+      } catch (error) {
+        console.error('Error recording completed activity:', error);
+      }
+    }
+  };
 
 const styles: { [key: string]: CSSProperties } = {
   container: {
@@ -741,11 +732,11 @@ return (
         </div>
       </div>
 
-      {timeRemaining && (
-        <div style={styles.timerContainer}>
-          Next mood record in: {timeRemaining}
-        </div>
-      )}
+        {nextMoodRecordTime && (
+          <div style={styles.timerContainer}>
+            Next mood record in: {nextMoodRecordTime}
+          </div>
+        )}
 
       <div style={styles.moodTracker}>
         <p style={styles.moodQuestion}>How are you feeling today?</p>
@@ -799,61 +790,61 @@ return (
         </div>
       </div>
 
-      <div style={styles.graphCard}>
-        <h2 style={styles.graphTitle}>Mood History</h2>
-        <div style={styles.averages}>
-          <p>Daily Average: {averages.dailyAvg.toFixed(2)}</p>
-          <p>Weekly Average: {averages.weeklyAvg.toFixed(2)}</p>
-          <p>Monthly Average: {averages.monthlyAvg.toFixed(2)}</p>
+        <div style={styles.graphCard}>
+          <h2 style={styles.graphTitle}>Mood History</h2>
+          <div style={styles.averages}>
+            <p>Daily Average: {averages.dailyAvg.toFixed(2)}</p>
+            <p>Weekly Average: {averages.weeklyAvg.toFixed(2)}</p>
+            <p>Monthly Average: {averages.monthlyAvg.toFixed(2)}</p>
+          </div>
+          <div style={styles.graph}>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={graphData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis domain={[0, 100]} />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="mood"
+                  stroke="#8884d8"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div style={styles.graph}>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={graphData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis domain={[0, 100]} />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="mood"
-                stroke="#8884d8"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
 
-      <div style={styles.activitiesHeader}>
-        <h2 style={styles.activitiesTitle}>Your activities for</h2>
-        <div style={styles.timeframeSelector}>
-          {['daily', 'weekly', 'monthly'].map((timeframe) => (
-            <button
-              key={timeframe}
-              style={{
-                ...styles.timeframeButton,
-                backgroundColor: selectedTimeframe === timeframe ? '#22c55e' : '#4b5563',
-                color: selectedTimeframe === timeframe ? 'black' : 'white',
-              }}
-              onClick={() => setSelectedTimeframe(timeframe as 'daily' | 'weekly' | 'monthly')}
-            >
-              {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
-            </button>
-          ))}
+        <div style={styles.activitiesHeader}>
+          <h2 style={styles.activitiesTitle}>Your activities for</h2>
+          <div style={styles.timeframeSelector}>
+            {['daily', 'weekly', 'monthly'].map((timeframe) => (
+              <button
+                key={timeframe}
+                style={{
+                  ...styles.timeframeButton,
+                  backgroundColor: selectedTimeframe === timeframe ? '#22c55e' : '#4b5563',
+                  color: selectedTimeframe === timeframe ? 'black' : 'white',
+                }}
+                onClick={() => setSelectedTimeframe(timeframe as 'daily' | 'weekly' | 'monthly')}
+              >
+                {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
+        <Activities 
+          activities={recommendedActivities} 
+          onActivityClick={handleActivityClick}
+          activeActivity={activeActivity ? { activityName: activeActivity.activityName } : null}
+          remainingTime={remainingTime}
+        />
+        <ChoiceActivities />
       </div>
-      <Activities 
-        activities={recommendedActivities} 
-        onActivityClick={handleActivityClick}
-        activeActivity={activeActivity}
-        remainingTime={remainingTime}
-      />
-      <ChoiceActivities />
-    </div>
-    {showPopup && <div style={styles.popup}>{popupMessage}</div>}
-    {showActivityConfirmation && (
-      <div style={styles.confirmationPopup}>
-        <p>Are you sure you want to start this activity?</p>
-        <p>{selectedActivity?.name} - {selectedActivity?.duration}</p>
+      {showPopup && <div style={styles.popup}>{popupMessage}</div>}
+      {showActivityConfirmation && (
+        <div style={styles.confirmationPopup}>
+          <p>Are you sure you want to start this activity?</p>
+          <p>{selectedActivity?.name} - {selectedActivity?.duration}</p>
           <div style={styles.confirmationButtons}>
             <button style={styles.confirmButton} onClick={handleConfirmActivity}>
               Yes
@@ -864,8 +855,9 @@ return (
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
+
 
 export default Dashboard;
