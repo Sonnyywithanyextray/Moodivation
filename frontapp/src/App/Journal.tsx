@@ -1,4 +1,3 @@
-// Journal.tsx
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../services/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -44,12 +43,6 @@ const JournalApp: React.FC = () => {
     }));
     setJournalHistory(historyData);
   };
-    if (user) {
-      fetchJournalHistory();
-    }
-  }, [user]);
-
-
 
   const handleJournalSubmit = async (entry: string) => {
     if (!user) {
