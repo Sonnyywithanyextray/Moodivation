@@ -7,10 +7,21 @@ import {
   orderBy,
   getDocs,
   Timestamp,
+  where,
 } from "firebase/firestore";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import useSpotifyAuth from "../hooks/useSpotifyAuth";
 import Spotify from "../components/playlist";
+import { motion } from 'framer-motion';
+import {
+  Smile,
+  Meh,
+  Frown,
+  User as UserIcon,
+  Music,
+  Settings,
+  LogOut,
+} from 'lucide-react';
 
 interface ProfileProps {
   user: User;
@@ -21,6 +32,7 @@ interface MoodEntry {
   mood: number;
   timestamp: Timestamp;
 }
+
 interface SpotifyCurrentlyPlaying {
   item: {
     name: string;
@@ -34,7 +46,34 @@ interface SpotifyCurrentlyPlaying {
 const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
   const [mood, setMood] = useState(50);
   const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [profilePicUrl, setProfilePicUrl] = useState<string>('/api/placeholder/40/40');
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<SpotifyCurrentlyPlaying | null>(null);
+  const [completedActivities, setCompletedActivities] = useState<number>(0);
   const db = getFirestore();
+  const { login } = useSpotifyAuth();
+  const [accessToken, setAccessToken] = useState(
+    localStorage.getItem("spotify_access_token")
+  );
+
+  const pageVariants = {
+    initial: { opacity: 0, x: '100%' },
+    in: { opacity: 1, x: 0 },
+    out: { opacity: 0, x: '-100%' }
+  };
+
+  const pageTransition = {
+    type: 'tween',
+    ease: 'anticipate',
+    duration: 0.5
+  };
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     const fetchMoodData = async () => {
       try {
@@ -55,25 +94,25 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
     };
     fetchMoodData();
   }, [user.uid, db]);
-  const { login } = useSpotifyAuth();
-  const [accessToken, setAccessToken] = useState(
-    localStorage.getItem("spotify_access_token")
-  );
 
-  const graphData = moodHistory
-    .slice(0, 30)
-    .map((entry) => ({
-      date: entry.timestamp.toDate().toLocaleDateString(),
-      mood: entry.mood,
-    }))
-    .reverse();
+  useEffect(() => {
+    const fetchCompletedActivities = async () => {
+      try {
+        const activitiesRef = collection(db, 'activities', user.uid, 'completed');
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        const q = query(activitiesRef, where('timestamp', '>=', oneWeekAgo));
+        const querySnapshot = await getDocs(q);
+        setCompletedActivities(querySnapshot.size);
+      } catch (error) {
+        console.error('Error fetching completed activities:', error);
+      }
+    };
 
-  const moodColor = mood > 66 ? "#22c55e" : mood > 33 ? "#eab308" : "#ef4444";
-  const getColor = (index: number) => moodColor;
-  const [currentlyPlaying, setCurrentlyPlaying] =
-    useState<SpotifyCurrentlyPlaying | null>(null);
+    fetchCompletedActivities();
+  }, [user.uid, db]);
 
-  // Function to fetch currently playing track
   const fetchCurrentlyPlaying = async () => {
     if (!accessToken) return;
 
@@ -90,169 +129,225 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
       const data = await response.json();
       setCurrentlyPlaying(data);
     } else {
-      setCurrentlyPlaying(null); // No track is currently playing or error occurred
+      setCurrentlyPlaying(null);
     }
   };
 
-  // Fetch currently playing track when the component loads or accessToken changes
   useEffect(() => {
     if (accessToken) {
       fetchCurrentlyPlaying();
     }
   }, [accessToken]);
 
+  const graphData = moodHistory
+    .slice(0, 30)
+    .map((entry) => ({
+      date: entry.timestamp.toDate().toLocaleDateString(),
+      mood: entry.mood,
+    }))
+    .reverse();
+
+  const moodColor = mood > 66 ? "#22c55e" : mood > 33 ? "#eab308" : "#ef4444";
+  const getColor = (index: number) => moodColor;
+
   const styles: { [key: string]: CSSProperties } = {
     container: {
-      backgroundColor: "black",
-      color: "white",
-      minHeight: "100vh",
-      width: "100%",
-      padding: "1rem",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "flex-start",
+      backgroundColor: 'black',
+      color: 'white',
+      minHeight: '100vh',
+      width: '100%',
+      margin: 0,
+      padding: 0,
+      boxSizing: 'border-box',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'flex-start',
     },
     content: {
-      width: "100%",
-      maxWidth: "480px",
+      width: '100%',
+      maxWidth: '480px',
+      padding: '1rem',
+      boxSizing: 'border-box',
     },
     header: {
-      backgroundColor: "#4caf50",
-      padding: "16px",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      borderRadius: "8px",
-      marginBottom: "1.5rem",
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: '1.5rem',
     },
-    h1: {
-      fontSize: "1.8rem",
-      fontFamily: "Times New Roman",
-      color: "black",
+    headerLeft: {
+      display: 'flex',
+      alignItems: 'center',
+    },
+    headerRight: {
+      display: 'flex',
+      alignItems: 'center',
+    },
+    headerTitle: {
+      fontSize: windowWidth < 768 ? '1.5rem' : '1.8rem',
+      fontWeight: '600',
+      color: 'white',
+      marginRight: '1rem',
     },
     navLink: {
-        color: "black",
-        marginRight: "16px",
-        textDecoration: "none",
-      },
-    card: {
-      backgroundColor: "white",
-      borderRadius: "8px",
-      padding: "16px",
-      marginTop: "16px",
-      color: "black",
+      color: 'white',
+      marginRight: '16px',
+      textDecoration: 'none',
+      fontSize: '0.875rem',
     },
-    graph: {
-      width: "100%",
-      height: 200,
+    card: {
+      borderRadius: '0.5rem',
+      padding: '1rem',
+      marginBottom: '1rem',
+    },
+    profileCard: {
+      backgroundColor: 'rgb(216, 180, 254)',
+      color: 'black',
+    },
+    goalsCard: {
+      backgroundColor: 'rgb(187, 247, 208)',
+      color: 'black',
+    },
+    progressCard: {
+      backgroundColor: 'white',
+      color: 'black',
+    },
+    defaultCard: {
+      backgroundColor: '#1e1e1e',
+    },
+    profileInfo: {
+      display: 'flex',
+      alignItems: 'center',
+      marginBottom: '1rem',
+    },
+    profileImage: {
+      width: '4rem',
+      height: '4rem',
+      borderRadius: '50%',
+      marginRight: '1rem',
+    },
+    profileName: {
+      fontSize: '1.25rem',
+      fontWeight: 'bold',
+      marginBottom: '0.25rem',
+    },
+    profileEmail: {
+      fontSize: '0.875rem',
+      color: '#4a4a4a',
     },
     sectionTitle: {
-      fontSize: "18px",
-      fontWeight: "bold",
-      marginBottom: "8px",
-    },
-    progressContainer: {
-      display: "flex",
-      marginTop: "8px",
-    },
-    halfWidth: {
-      width: "50%",
+      fontSize: '1.125rem',
+      fontWeight: 'bold',
+      marginBottom: '0.5rem',
     },
     inputRange: {
-      width: "100%",
-      marginTop: "8px",
+      width: '100%',
+      marginTop: '0.5rem',
     },
     toggleContainer: {
-      display: "flex",
-      alignItems: "center",
-      marginTop: "16px",
+      display: 'flex',
+      alignItems: 'center',
+      marginTop: '1rem',
     },
     toggleLabel: {
-      marginRight: "8px",
+      marginRight: '0.5rem',
     },
     toggleSwitch: {
-      marginLeft: "8px",
+      marginLeft: '0.5rem',
+    },
+    graph: {
+      height: '200px',
+    },
+    spotifyContainer: {
+      marginTop: '1rem',
+    },
+    spotifyButton: {
+      backgroundColor: '#1DB954',
+      color: 'white',
+      border: 'none',
+      padding: '0.5rem 1rem',
+      borderRadius: '0.25rem',
+      cursor: 'pointer',
+      fontSize: '0.875rem',
+    },
+    currentlyPlaying: {
+      marginTop: '0.5rem',
+      fontSize: '0.875rem',
+    },
+    albumCover: {
+      width: '50px',
+      height: '50px',
+      marginTop: '0.5rem',
     },
     resourcesContainer: {
-      backgroundColor: "#E8F5E9",
-      padding: "16px",
-      borderRadius: "8px",
-      marginTop: "16px",
-      color: "black"
+      marginTop: '1rem',
+    },
+    resourcesList: {
+      listStyleType: 'none',
+      padding: 0,
+    },
+    resourceItem: {
+      marginBottom: '0.5rem',
     },
     logoutButton: {
-      backgroundColor: "#ef4444",
-      color: "white",
-      padding: "8px 16px",
-      borderRadius: "4px",
-      border: "none",
-      cursor: "pointer",
-      marginTop: "16px",
+      backgroundColor: '#ef4444',
+      color: 'white',
+      padding: '0.5rem 1rem',
+      borderRadius: '0.25rem',
+      border: 'none',
+      cursor: 'pointer',
+      fontSize: '0.875rem',
+    },
+    activitiesText: {
+      textAlign: 'center',
+      marginTop: '1rem',
     },
   };
 
   return (
-    <div style={styles.container}>
+    <motion.div
+      style={styles.container}
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+    >
       <div style={styles.content}>
         <header style={styles.header}>
-          <img src="frontapp/src/assets/Icons/6.png" alt="" />
-          <h1 style={styles.h1}>Moodtivation</h1>
-          <nav>
-            <a href="/" style={styles.navLink}>
-              Home
-            </a>
-            <a href="/" style={styles.navLink}>
-              Activities
-            </a>
-            <a style={{ ...styles.navLink, fontWeight: "bold" }}>Profile</a>
-            {accessToken ? (
-            <Spotify accessToken={accessToken} /> // Render Spotify component
-          ) : (
-            <button onClick={login} className="spotify-login-button">
-              Connect to Spotify
+          <div style={styles.headerLeft}>
+            <h1 style={styles.headerTitle}>Profile</h1>
+            <nav>
+              <a href="/" style={styles.navLink}>Home</a>
+              <a href="/" style={styles.navLink}>Activities</a>
+              <span style={{ ...styles.navLink, fontWeight: 'bold' }}>Profile</span>
+            </nav>
+          </div>
+          <div style={styles.headerRight}>
+            <button style={styles.logoutButton} onClick={onLogout}>
+              Logout
             </button>
-          )}
-
-            {currentlyPlaying ? (
-              <>
-                <p>
-                  {currentlyPlaying.item.name} by{" "}
-                  {currentlyPlaying.item.artists
-                    .map((artist) => artist.name)
-                    .join(", ")}
-                </p>
-                <img
-                  src={currentlyPlaying.item.album.images[0].url}
-                  alt="Album cover"
-                  width={150}
-                />
-              </>
-            ) : (
-              <p>No song is currently playing.</p>
-            )}
-          </nav>
+          </div>
         </header>
 
-        <div style={styles.card}>
-          <div style={{ display: "flex", alignItems: "center" }}>
+        <div style={{...styles.card, ...styles.profileCard}}>
+          <div style={styles.profileInfo}>
             <img
-              src="/frontapp/src/assets/Icons/12.png"
-              alt="Jessica Parker"
+              src={profilePicUrl}
+              alt="Profile"
               style={styles.profileImage}
             />
             <div>
-              <h2 style={styles.sectionTitle}>Jessica Parker</h2>
-              <p>Engaged in 5 activities this week</p>
+              <h2 style={styles.profileName}>{user.displayName || 'User'}</h2>
+              <p style={styles.profileEmail}>{user.email}</p>
             </div>
           </div>
+          <p style={styles.activitiesText}>
+            Engaged in {completedActivities} {completedActivities === 1 ? 'activity' : 'activities'} this week
+          </p>
         </div>
 
-        <div
-          style={{
-            ...styles.card,
-            backgroundColor: "#C7C7F1",
-          }}
-        >
+        <div style={{...styles.card, ...styles.goalsCard}}>
           <h3 style={styles.sectionTitle}>Set Your Goals</h3>
           <label>Daily Meditation (minutes)</label>
           <input type="range" min="1" max="60" style={styles.inputRange} />
@@ -263,8 +358,8 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
           </div>
         </div>
 
-        <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>Your Progress</h2>
+        <div style={{...styles.card, ...styles.progressCard}}>
+          <h2 style={{...styles.sectionTitle, color: 'black'}}>Your Progress</h2>
           <div style={styles.graph}>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
@@ -277,9 +372,8 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
                   outerRadius={60}
                   labelLine={false}
                   label={({ name, percent }) =>
-                    name === "Mood" ? `${(percent * 100).toFixed(0)}%` : ""
+                    `${(percent * 100).toFixed(0)}%`
                   }
-                  //  label
                 >
                   {graphData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={getColor(index)} />
@@ -291,18 +385,44 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout }) => {
           </div>
         </div>
 
-        <div style={styles.resourcesContainer}>
-          <h3 style={styles.sectionTitle}>Resources & Tools</h3>
-          <ul>
-            <li>Meditation Techniques</li>
-          </ul>
+        <div style={{...styles.card, ...styles.defaultCard}}>
+          <h3 style={{...styles.sectionTitle, color: 'white'}}>Spotify Integration</h3>
+          <div style={styles.spotifyContainer}>
+            {accessToken ? (
+              <Spotify accessToken={accessToken} />
+            ) : (
+              <button onClick={login} style={styles.spotifyButton}>
+                Connect to Spotify
+              </button>
+            )}
+            {currentlyPlaying && (
+              <div style={styles.currentlyPlaying}>
+                <p>
+                  Now Playing: {currentlyPlaying.item.name} by{" "}
+                  {currentlyPlaying.item.artists
+                    .map((artist) => artist.name)
+                    .join(", ")}
+                </p>
+                <img
+                  src={currentlyPlaying.item.album.images[0].url}
+                  alt="Album cover"
+                  style={styles.albumCover}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
-        <button style={styles.logoutButton} onClick={onLogout}>
-          Logout
-        </button>
+        <div style={{...styles.card, ...styles.defaultCard}}>
+          <h3 style={{...styles.sectionTitle, color: 'white'}}>Resources & Tools</h3>
+          <ul style={styles.resourcesList}>
+            <li style={styles.resourceItem}>Meditation Techniques</li>
+            <li style={styles.resourceItem}>Stress Management Guide</li>
+            <li style={styles.resourceItem}>Sleep Improvement Tips</li>
+          </ul>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

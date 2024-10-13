@@ -1,9 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  CSSProperties,
-  useRef,
-} from 'react';
+import React, { useState, useEffect, CSSProperties } from 'react';
 import {
   Smile,
   Meh,
@@ -38,6 +33,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  where,
 } from 'firebase/firestore';
 import {
   LineChart,
@@ -50,6 +46,8 @@ import {
 } from 'recharts';
 import { fetchQuote } from './quotes';
 import ChoiceActivities from './ChoiceActivities';
+import { motion } from 'framer-motion';
+import { usePersistentTimer } from '../hooks/usePersistentTimer';
 
 interface DashboardProps {
   user: FirebaseUser;
@@ -101,7 +99,7 @@ const getRecommendedActivities = (averageMood: number): Activity[] => {
 const Activities: React.FC<{ 
   activities: Activity[], 
   onActivityClick: (activity: Activity) => void,
-  activeActivity: Activity | null,
+  activeActivity: { activityName: string } | null,
   remainingTime: number
 }> = ({ activities, onActivityClick, activeActivity, remainingTime }) => {
   const styles: { [key: string]: CSSProperties } = {
@@ -151,14 +149,14 @@ const Activities: React.FC<{
           key={index} 
           style={{
             ...styles.activityItem,
-            ...(activeActivity?.name === activity.name ? styles.activeActivity : {})
+            ...(activeActivity?.activityName === activity.name ? styles.activeActivity : {})
           }}
           onClick={() => onActivityClick(activity)}
         >
           <div style={styles.activityIcon}>{activity.icon}</div>
           <span style={styles.activityName}>{activity.name}</span>
           <span style={styles.activityDuration}>
-            {activeActivity?.name === activity.name ? formatTime(remainingTime) : activity.duration}
+            {activeActivity?.activityName === activity.name ? formatTime(remainingTime) : activity.duration}
           </span>
         </div>
       ))}
@@ -177,7 +175,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isSliding, setIsSliding] = useState(false);
   const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
   const [lastRecordTime, setLastRecordTime] = useState<Date | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<string>('');
+  const [nextMoodRecordTime, setNextMoodRecordTime] = useState<string>('');
   const [streak, setStreak] = useState(0);
   const [profilePicUrl, setProfilePicUrl] = useState<string>('/api/placeholder/40/40');
   const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
@@ -185,12 +183,44 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [selectedTimeframe, setSelectedTimeframe] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [showActivityConfirmation, setShowActivityConfirmation] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
-  const [activeActivity, setActiveActivity] = useState<Activity | null>(null);
-  const [remainingTime, setRemainingTime] = useState<number>(0);
+  const [completedActivities, setCompletedActivities] = useState<number>(0);
 
   const navigate = useNavigate();
   const db = getFirestore();
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const { activeActivity, remainingTime, startTimer } = usePersistentTimer();
+
+  const moodColor =
+  mood > 66 ? '#22c55e' : mood > 33 ? '#eab308' : '#ef4444';
+
+  const pageVariants = {
+    initial: { opacity: 0, x: '100%' },
+    in: { opacity: 1, x: 0 },
+    out: { opacity: 0, x: '-100%' }
+  };
+
+  const pageTransition = {
+    type: 'tween',
+    ease: 'anticipate',
+    duration: 0.5
+  };
+
+  useEffect(() => {
+    const fetchCompletedActivities = async () => {
+      try {
+        const activitiesRef = collection(db, 'activities', user.uid, 'completed');
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        const q = query(activitiesRef, where('timestamp', '>=', oneWeekAgo));
+        const querySnapshot = await getDocs(q);
+        setCompletedActivities(querySnapshot.size);
+      } catch (error) {
+        console.error('Error fetching completed activities:', error);
+      }
+    };
+
+    fetchCompletedActivities();
+  }, [user.uid, db]);
 
   useEffect(() => {
     console.log("Current user:", user);
@@ -238,9 +268,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         if (diff > 0) {
           const hours = Math.floor(diff / (60 * 60 * 1000));
           const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
-          setTimeRemaining(`${hours}h ${minutes}m`);
+          setNextMoodRecordTime(`${hours}h ${minutes}m`);
         } else {
-          setTimeRemaining('');
+          setNextMoodRecordTime('');
           setLastRecordTime(null);
         }
       }
@@ -278,27 +308,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     fetchProfilePic();
   }, [user.uid, db]);
 
-  useEffect(() => {
-    if (activeActivity && remainingTime > 0) {
-      timerRef.current = setInterval(() => {
-        setRemainingTime((prevTime) => {
-          if (prevTime <= 1) {
-            clearInterval(timerRef.current!);
-            setActiveActivity(null);
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [activeActivity, remainingTime]);
-
   const calculateStreak = (moodHistory: MoodEntry[]): number => {
     if (moodHistory.length === 0) return 0;
 
@@ -332,8 +341,333 @@ const Dashboard: React.FC<DashboardProps> = ({
     return streak;
   };
 
-  const moodColor =
-    mood > 66 ? '#22c55e' : mood > 33 ? '#eab308' : '#ef4444';
+  const calculateAverages = () => {
+    const now = new Date();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const oneWeek = 7 * oneDay;
+    const oneMonth = 30 * oneDay;
+
+    const dailyMoods = moodHistory.filter(
+      (entry) => entry.timestamp.toDate() >= new Date(now.getTime() - oneDay)
+    );
+    const weeklyMoods = moodHistory.filter(
+      (entry) => entry.timestamp.toDate() >= new Date(now.getTime() - oneWeek)
+    );
+    const monthlyMoods = moodHistory.filter(
+      (entry) => entry.timestamp.toDate() >= new Date(now.getTime() - oneMonth)
+    );
+
+    const dailyAvg =
+      dailyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
+        dailyMoods.length || 0;
+    const weeklyAvg =
+      weeklyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
+        weeklyMoods.length || 0;
+    const monthlyAvg =
+      monthlyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
+        monthlyMoods.length || 0;
+
+    return { dailyAvg, weeklyAvg, monthlyAvg };
+  };
+
+  const averages = calculateAverages();
+
+  const graphData = moodHistory
+    .slice(0, 30)
+    .map((entry) => ({
+      date: entry.timestamp.toDate().toLocaleString(),
+      mood: entry.mood,
+    }))
+    .reverse();
+
+  const handleProfileClick = () => {
+    navigate('/profile');
+  };
+
+  const getAverageForTimeframe = (timeframe: 'daily' | 'weekly' | 'monthly') => {
+    switch (timeframe) {
+      case 'daily':
+        return averages.dailyAvg;
+      case 'weekly':
+        return averages.weeklyAvg;
+      case 'monthly':
+        return averages.monthlyAvg;
+      default:
+        return averages.dailyAvg;
+    }
+  };
+
+  const recommendedActivities = getRecommendedActivities(getAverageForTimeframe(selectedTimeframe));
+
+  const handleActivityClick = (activity: Activity) => {
+    setSelectedActivity(activity);
+    setShowActivityConfirmation(true);
+  };
+
+  const handleConfirmActivity = async () => {
+    if (selectedActivity) {
+      startTimer(selectedActivity.name, selectedActivity.timeInSeconds);
+      setShowActivityConfirmation(false);
+
+      try {
+        const activitiesRef = collection(db, 'activities', user.uid, 'completed');
+        await addDoc(activitiesRef, {
+          name: selectedActivity.name,
+          timestamp: serverTimestamp(),
+        });
+        setCompletedActivities(prev => prev + 1);
+      } catch (error) {
+        console.error('Error recording completed activity:', error);
+      }
+    }
+  };
+
+  const styles: { [key: string]: CSSProperties } = {
+    container: {
+      backgroundColor: 'black',
+      color: 'white',
+      minHeight: '100vh',
+      width: '100%',
+      margin: 0,
+      padding: 0,
+      boxSizing: 'border-box',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+    },
+    content: {
+      width: '100%',
+      maxWidth: '480px',
+      padding: '1rem',
+      boxSizing: 'border-box',
+    },
+    header: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: '1.5rem',
+    },
+    userInfo: {
+      display: 'flex',
+      alignItems: 'center',
+    },
+    avatar: {
+      width: '2.5rem',
+      height: '2.5rem',
+      borderRadius: '9999px',
+      marginRight: '0.75rem',
+      objectFit: 'cover',
+      cursor: 'pointer',
+    },
+    welcomeText: {
+      fontSize: windowWidth < 768 ? '1rem' : '1.25rem',
+      fontWeight: '600',
+    },
+    userEmail: {
+      fontSize: '0.875rem',
+      color: '#9ca3af',
+    },
+    headerRight: {
+      display: 'flex',
+      alignItems: 'center',
+    },
+    notificationBadge: {
+      backgroundColor: '#22c55e',
+      color: 'black',
+      borderRadius: '9999px',
+      width: '2rem',
+      height: '2rem',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: 'bold',
+      position: 'relative',
+    },
+    notificationDot: {
+      position: 'absolute',
+      top: '-0.25rem',
+      right: '-0.25rem',
+      width: '0.75rem',
+      height: '0.75rem',
+      backgroundColor: 'white',
+      borderRadius: '9999px',
+      border: '2px solid black',
+    },
+    logoutButton: {
+      backgroundColor: '#ef4444',
+      color: 'white',
+      padding: '0.25rem 0.75rem',
+      borderRadius: '0.25rem',
+      fontSize: '0.875rem',
+      fontWeight: '500',
+      border: 'none',
+      cursor: 'pointer',
+      marginLeft: '0.5rem',
+    },
+    moodTracker: {
+      backgroundColor: '#bbf7d0',
+      borderRadius: '0.5rem',
+      padding: '1rem',
+      marginBottom: '1rem',
+    },
+    moodQuestion: {
+      color: 'black',
+      marginBottom: '0.5rem',
+      fontWeight: '500',
+    },
+    moodIcons: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: '0.5rem',
+    },
+    moodSlider: {
+      width: '100%',
+      accentColor: moodColor,
+    },
+    quoteCard: {
+      backgroundColor: '#d8b4fe',
+      borderRadius: '0.5rem',
+      padding: '1rem',
+      marginBottom: '1rem',
+    },
+    quoteContent: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      marginBottom: '0.75rem',
+    },
+    quote: {
+      color: 'black',
+      fontWeight: '500',
+      fontSize: '0.875rem',
+      marginLeft: '0.5rem',
+    },
+    moodOverview: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '0.5rem',
+      color: 'black',
+      fontSize: '0.75rem',
+    },
+    moodOverviewItem: {
+      fontWeight: 'bold',
+    },
+    graphCard: {
+      backgroundColor: '#f0f0f0',
+      borderRadius: '0.5rem',
+      padding: '1rem',
+      marginBottom: '1rem',
+    },
+    graphTitle: {
+      fontSize: '1.2rem',
+      fontWeight: 'bold',
+      marginBottom: '0.5rem',
+      color: 'black',
+    },
+    averages: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: '1rem',
+      color: 'black',
+    },
+    graph: {
+      height: '200px',
+    },
+    activitiesHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '1rem',
+    },
+    activitiesTitle: {
+      fontSize: windowWidth < 768 ? '1rem' : '1.125rem',
+      fontWeight: 'bold',
+    },
+    timeframeSelector: {
+      display: 'flex',
+      gap: '0.5rem',
+    },
+    timeframeButton: {
+      padding: '0.25rem 0.75rem',
+      borderRadius: '9999px',
+      fontSize: '0.875rem',
+      fontWeight: '500',
+      border: 'none',
+      cursor: 'pointer',
+      backgroundColor: selectedTimeframe === 'daily' || selectedTimeframe === 'weekly' || selectedTimeframe === 'monthly' ? '#22c55e' : '#4b5563',
+      color: selectedTimeframe === 'daily' || selectedTimeframe === 'weekly' || selectedTimeframe === 'monthly' ? 'black' : 'white',
+    },
+    popup: {
+      position: 'fixed',
+      bottom: '20px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      backgroundColor: '#4CAF50',
+      color: 'white',
+      padding: '10px 20px',
+      borderRadius: '5px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+      zIndex: 1000,
+    },
+    timerContainer: {
+      textAlign: 'center',
+      marginBottom: '1rem',
+      fontSize: '1.2rem',
+      fontWeight: 'bold',
+    },
+    avatarOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '2.5rem',
+      height: '2.5rem',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      borderRadius: '9999px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: 'white',
+      cursor: 'pointer',
+    },
+    avatarOverlayText: {
+      fontSize: '0.75rem',
+      fontWeight: 'bold',
+    },
+    confirmationPopup: {
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      backgroundColor: '#333',
+      color: 'white',
+      padding: '20px',
+      borderRadius: '10px',
+      zIndex: 1000,
+      textAlign: 'center',
+    },
+    confirmationButtons: {
+      display: 'flex',
+      justifyContent: 'space-around',
+      marginTop: '20px',
+    },
+    confirmButton: {
+      backgroundColor: '#4CAF50',
+      color: 'white',
+      border: 'none',
+      padding: '10px 20px',
+      borderRadius: '5px',
+      cursor: 'pointer',
+    },
+    cancelButton: {
+      backgroundColor: '#f44336',
+      color: 'white',
+      border: 'none',
+      padding: '10px 20px',
+      borderRadius: '5px',
+      cursor: 'pointer',
+    },
+  };
+
 
   const handleLogout = async () => {
     await onLogout();
@@ -378,473 +712,165 @@ const Dashboard: React.FC<DashboardProps> = ({
       setTimeout(() => setShowPopup(false), 3000);
     }
   };
-  
-  const calculateAverages = () => {
-    const now = new Date();
-    const oneDay = 24 * 60 * 60 * 1000;
-    const oneWeek = 7 * oneDay;
-    const oneMonth = 30 * oneDay;
 
-    const dailyMoods = moodHistory.filter(
-      (entry) => entry.timestamp.toDate() >= new Date(now.getTime() - oneDay)
-    );
-    const weeklyMoods = moodHistory.filter(
-      (entry) => entry.timestamp.toDate() >= new Date(now.getTime() - oneWeek)
-    );
-    const monthlyMoods = moodHistory.filter(
-      (entry) => entry.timestamp.toDate() >= new Date(now.getTime() - oneMonth)
-    );
-
-    const dailyAvg =
-    dailyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
-      dailyMoods.length || 0;
-  const weeklyAvg =
-    weeklyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
-      weeklyMoods.length || 0;
-  const monthlyAvg =
-    monthlyMoods.reduce((sum, entry) => sum + entry.mood, 0) /
-      monthlyMoods.length || 0;
-
-  return { dailyAvg, weeklyAvg, monthlyAvg };
-};
-
-const averages = calculateAverages();
-
-const graphData = moodHistory
-  .slice(0, 30)
-  .map((entry) => ({
-    date: entry.timestamp.toDate().toLocaleString(),
-    mood: entry.mood,
-  }))
-  .reverse();
-
-const handleProfileClick = () => {
-  navigate('/profile');
-};
-
-const getAverageForTimeframe = (timeframe: 'daily' | 'weekly' | 'monthly') => {
-  switch (timeframe) {
-    case 'daily':
-      return averages.dailyAvg;
-    case 'weekly':
-      return averages.weeklyAvg;
-    case 'monthly':
-      return averages.monthlyAvg;
-    default:
-      return averages.dailyAvg;
-  }
-};
-
-const recommendedActivities = getRecommendedActivities(getAverageForTimeframe(selectedTimeframe));
-
-const handleActivityClick = (activity: Activity) => {
-  setSelectedActivity(activity);
-  setShowActivityConfirmation(true);
-};
-
-const handleConfirmActivity = () => {
-  if (selectedActivity) {
-    setActiveActivity(selectedActivity);
-    setRemainingTime(selectedActivity.timeInSeconds);
-    setShowActivityConfirmation(false);
-  }
-};
-
-const styles: { [key: string]: CSSProperties } = {
-  container: {
-    backgroundColor: 'black',
-    color: 'white',
-    minHeight: '100vh',
-    width: '100%',
-    margin: 0,
-    padding: 0,
-    boxSizing: 'border-box',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  content: {
-    width: '100%',
-    maxWidth: '480px',
-    padding: '1rem',
-    boxSizing: 'border-box',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '1.5rem',
-  },
-  userInfo: {
-    display: 'flex',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: '2.5rem',
-    height: '2.5rem',
-    borderRadius: '9999px',
-    marginRight: '0.75rem',
-    objectFit: 'cover',
-    cursor: 'pointer',
-  },
-  welcomeText: {
-    fontSize: windowWidth < 768 ? '1rem' : '1.25rem',
-    fontWeight: '600',
-  },
-  userEmail: {
-    fontSize: '0.875rem',
-    color: '#9ca3af',
-  },
-  headerRight: {
-    display: 'flex',
-    alignItems: 'center',
-  },
-  notificationBadge: {
-    backgroundColor: '#22c55e',
-    color: 'black',
-    borderRadius: '9999px',
-    width: '2rem',
-    height: '2rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 'bold',
-    position: 'relative',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: '-0.25rem',
-    right: '-0.25rem',
-    width: '0.75rem',
-    height: '0.75rem',
-    backgroundColor: 'white',
-    borderRadius: '9999px',
-    border: '2px solid black',
-  },
-  logoutButton: {
-    backgroundColor: '#ef4444',
-    color: 'white',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '0.25rem',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    border: 'none',
-    cursor: 'pointer',
-    marginLeft: '0.5rem',
-  },
-  moodTracker: {
-    backgroundColor: '#bbf7d0',
-    borderRadius: '0.5rem',
-    padding: '1rem',
-    marginBottom: '1rem',
-  },
-  moodQuestion: {
-    color: 'black',
-    marginBottom: '0.5rem',
-    fontWeight: '500',
-  },
-  moodIcons: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '0.5rem',
-  },
-  moodSlider: {
-    width: '100%',
-    accentColor: moodColor,
-  },
-  quoteCard: {
-    backgroundColor: '#d8b4fe',
-    borderRadius: '0.5rem',
-    padding: '1rem',
-    marginBottom: '1rem',
-  },
-  quoteContent: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    marginBottom: '0.75rem',
-  },
-  quote: {
-    color: 'black',
-    fontWeight: '500',
-    fontSize: '0.875rem',
-    marginLeft: '0.5rem',
-  },
-  moodOverview: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '0.5rem',
-    color: 'black',
-    fontSize: '0.75rem',
-  },
-  moodOverviewItem: {
-    fontWeight: 'bold',
-  },
-  graphCard: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: '0.5rem',
-    padding: '1rem',
-    marginBottom: '1rem',
-  },
-  graphTitle: {
-    fontSize: '1.2rem',
-    fontWeight: 'bold',
-    marginBottom: '0.5rem',
-    color: 'black',
-  },
-  averages: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '1rem',
-    color: 'black',
-  },
-  graph: {
-    height: '200px',
-  },
-  activitiesHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem',
-  },
-  activitiesTitle: {
-    fontSize: windowWidth < 768 ? '1rem' : '1.125rem',
-    fontWeight: 'bold',
-  },
-  timeframeSelector: {
-    display: 'flex',
-    gap: '0.5rem',
-  },
-  timeframeButton: {
-    padding: '0.25rem 0.75rem',
-    borderRadius: '9999px',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  popup: {
-    position: 'fixed',
-    bottom: '20px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    padding: '10px 20px',
-    borderRadius: '5px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-    zIndex: 1000,
-  },
-  timerContainer: {
-    textAlign: 'center',
-    marginBottom: '1rem',
-    fontSize: '1.2rem',
-    fontWeight: 'bold',
-  },
-  avatarOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '2.5rem',
-    height: '2.5rem',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: '9999px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'white',
-    cursor: 'pointer',
-  },
-  avatarOverlayText: {
-    fontSize: '0.75rem',
-    fontWeight: 'bold',
-  },
-  confirmationPopup: {
-    position: 'fixed',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    backgroundColor: '#333',
-    color: 'white',
-    padding: '20px',
-    borderRadius: '10px',
-    zIndex: 1000,
-    textAlign: 'center',
-  },
-  confirmationButtons: {
-    display: 'flex',
-    justifyContent: 'space-around',
-    marginTop: '20px',
-  },
-  confirmButton: {
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '5px',
-    cursor: 'pointer',
-  },
-  cancelButton: {
-    backgroundColor: '#f44336',
-    color: 'white',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '5px',
-    cursor: 'pointer',
-  },
-};
-
-return (
-  <div style={styles.container}>
-    <div style={styles.content}>
-      <div style={styles.header}>
-        <div style={styles.userInfo}>
-          <div style={{ position: 'relative' }}>
-            <img
-              src={profilePicUrl}
-              alt="User"
-              style={styles.avatar}
-              onMouseEnter={() => setIsHoveringAvatar(true)}
-              onMouseLeave={() => setIsHoveringAvatar(false)}
-              onClick={handleProfileClick}
-            />
-            {isHoveringAvatar && (
-              <div
-                style={styles.avatarOverlay}
+  return (
+    <motion.div
+      style={styles.container}
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+    >
+      <div style={styles.content}>
+        <div style={styles.header}>
+          <div style={styles.userInfo}>
+            <div style={{ position: 'relative' }}>
+              <img
+                src={profilePicUrl}
+                alt="User"
+                style={styles.avatar}
+                onMouseEnter={() => setIsHoveringAvatar(true)}
+                onMouseLeave={() => setIsHoveringAvatar(false)}
                 onClick={handleProfileClick}
-              >
-                <span style={styles.avatarOverlayText}>
-                  View Profile
-                </span>
-              </div>
-            )}
-          </div>
-          <div>
-            <h1 style={styles.welcomeText}>Welcome back!</h1>
-            <p style={styles.userEmail}>{user.email}</p>
-          </div>
-        </div>
-        <div style={styles.headerRight}>
-          <div style={styles.notificationBadge}>
-            {streak}
-            <div style={styles.notificationDot}></div>
-          </div>
-          <button style={styles.logoutButton} onClick={handleLogout}>
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {timeRemaining && (
-        <div style={styles.timerContainer}>
-          Next mood record in: {timeRemaining}
-        </div>
-      )}
-
-      <div style={styles.moodTracker}>
-        <p style={styles.moodQuestion}>How are you feeling today?</p>
-        <div style={styles.moodIcons}>
-          <Frown
-            color={mood <= 33 ? '#ef4444' : '#9ca3af'}
-            size={24}
-          />
-          <Meh
-            color={mood > 33 && mood <= 66 ? '#eab308' : '#9ca3af'}
-            size={24}
-          />
-          <Smile
-            color={mood > 66 ? '#22c55e' : '#9ca3af'}
-            size={24}
-          />
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={mood}
-          onChange={(e) => handleMoodChange(parseInt(e.target.value))}
-          onMouseUp={handleMoodChangeEnd}
-          onTouchEnd={handleMoodChangeEnd}
-          style={styles.moodSlider}
-        />
-      </div>
-
-      <div style={styles.quoteCard}>
-        <div style={styles.quoteContent}>
-          <Leaf color="#22c55e" size={20} />
-          <p style={styles.quote}>{quote}</p>
-        </div>
-        <div style={styles.moodOverview}>
-          <div>
-            <p style={styles.moodOverviewItem}>Mood overview</p>
-            <p>Positive</p>
-          </div>
-          <div>
-            <p style={styles.moodOverviewItem}>Gratitude journal</p>
-            <p>Mindfulness</p>
-          </div>
-          <div>
-            <p style={styles.moodOverviewItem}>Stress level</p>
-            <p>Calmness</p>
-          </div>
-        </div>
-      </div>
-
-      <div style={styles.graphCard}>
-        <h2 style={styles.graphTitle}>Mood History</h2>
-        <div style={styles.averages}>
-          <p>Daily Average: {averages.dailyAvg.toFixed(2)}</p>
-          <p>Weekly Average: {averages.weeklyAvg.toFixed(2)}</p>
-          <p>Monthly Average: {averages.monthlyAvg.toFixed(2)}</p>
-        </div>
-        <div style={styles.graph}>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={graphData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis domain={[0, 100]} />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="mood"
-                stroke="#8884d8"
               />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div style={styles.activitiesHeader}>
-        <h2 style={styles.activitiesTitle}>Your activities for</h2>
-        <div style={styles.timeframeSelector}>
-          {['daily', 'weekly', 'monthly'].map((timeframe) => (
-            <button
-              key={timeframe}
-              style={{
-                ...styles.timeframeButton,
-                backgroundColor: selectedTimeframe === timeframe ? '#22c55e' : '#4b5563',
-                color: selectedTimeframe === timeframe ? 'black' : 'white',
-              }}
-              onClick={() => setSelectedTimeframe(timeframe as 'daily' | 'weekly' | 'monthly')}
-            >
-              {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
+              {isHoveringAvatar && (
+                <div
+                  style={styles.avatarOverlay}
+                  onClick={handleProfileClick}
+                >
+                  <span style={styles.avatarOverlayText}>
+                    View Profile
+                  </span>
+                </div>
+              )}
+            </div>
+            <div>
+              <h1 style={styles.welcomeText}>Welcome back!</h1>
+              <p style={styles.userEmail}>{user.email}</p>
+            </div>
+          </div>
+          <div style={styles.headerRight}>
+            <div style={styles.notificationBadge}>
+              {streak}
+              <div style={styles.notificationDot}></div>
+            </div>
+            <button style={styles.logoutButton} onClick={handleLogout}>
+              Logout
             </button>
-          ))}
+          </div>
         </div>
+
+        {nextMoodRecordTime && (
+          <div style={styles.timerContainer}>
+            Next mood record in: {nextMoodRecordTime}
+          </div>
+        )}
+
+        <div style={styles.moodTracker}>
+          <p style={styles.moodQuestion}>How are you feeling today?</p>
+          <div style={styles.moodIcons}>
+            <Frown
+              color={mood <= 33 ? '#ef4444' : '#9ca3af'}
+              size={24}
+            />
+            <Meh
+              color={mood > 33 && mood <= 66 ? '#eab308' : '#9ca3af'}
+              size={24}
+            />
+            <Smile
+              color={mood > 66 ? '#22c55e' : '#9ca3af'}
+              size={24}
+            />
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={mood}
+            onChange={(e) => handleMoodChange(parseInt(e.target.value))}
+            onMouseUp={handleMoodChangeEnd}
+            onTouchEnd={handleMoodChangeEnd}
+            style={styles.moodSlider}
+          />
+        </div>
+
+        <div style={styles.quoteCard}>
+          <div style={styles.quoteContent}>
+            <Leaf color="#22c55e" size={20} />
+            <p style={styles.quote}>{quote}</p>
+          </div>
+          <div style={styles.moodOverview}>
+            <div>
+              <p style={styles.moodOverviewItem}>Mood overview</p>
+              <p>Positive</p>
+            </div>
+            <div>
+              <p style={styles.moodOverviewItem}>Gratitude journal</p>
+              <p>Mindfulness</p>
+            </div>
+            <div>
+              <p style={styles.moodOverviewItem}>Stress level</p>
+              <p>Calmness</p>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.graphCard}>
+          <h2 style={styles.graphTitle}>Mood History</h2>
+          <div style={styles.averages}>
+            <p>Daily Average: {averages.dailyAvg.toFixed(2)}</p>
+            <p>Weekly Average: {averages.weeklyAvg.toFixed(2)}</p>
+            <p>Monthly Average: {averages.monthlyAvg.toFixed(2)}</p>
+          </div>
+          <div style={styles.graph}>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={graphData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis domain={[0, 100]} />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="mood"
+                  stroke="#8884d8"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div style={styles.activitiesHeader}>
+          <h2 style={styles.activitiesTitle}>Your activities for</h2>
+          <div style={styles.timeframeSelector}>
+            {['daily', 'weekly', 'monthly'].map((timeframe) => (
+              <button
+                key={timeframe}
+                style={{
+                  ...styles.timeframeButton,
+                  backgroundColor: selectedTimeframe === timeframe ? '#22c55e' : '#4b5563',
+                  color: selectedTimeframe === timeframe ? 'black' : 'white',
+                }}
+                onClick={() => setSelectedTimeframe(timeframe as 'daily' | 'weekly' | 'monthly')}
+              >
+                {timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Activities 
+          activities={recommendedActivities} 
+          onActivityClick={handleActivityClick}
+          activeActivity={activeActivity ? { activityName: activeActivity.activityName } : null}
+          remainingTime={remainingTime}
+        />
+        <ChoiceActivities />
       </div>
-      <Activities 
-        activities={recommendedActivities} 
-        onActivityClick={handleActivityClick}
-        activeActivity={activeActivity}
-        remainingTime={remainingTime}
-      />
-      <ChoiceActivities />
-    </div>
-    {showPopup && <div style={styles.popup}>{popupMessage}</div>}
-    {showActivityConfirmation && (
-      <div style={styles.confirmationPopup}>
-        <p>Are you sure you want to start this activity?</p>
-        <p>{selectedActivity?.name} - {selectedActivity?.duration}</p>
+      {showPopup && <div style={styles.popup}>{popupMessage}</div>}
+      {showActivityConfirmation && (
+        <div style={styles.confirmationPopup}>
+          <p>Are you sure you want to start this activity?</p>
+          <p>{selectedActivity?.name} - {selectedActivity?.duration}</p>
           <div style={styles.confirmationButtons}>
             <button style={styles.confirmButton} onClick={handleConfirmActivity}>
               Yes
@@ -855,8 +881,9 @@ return (
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
+
 
 export default Dashboard;
