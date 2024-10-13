@@ -51,6 +51,8 @@ import sm from '../assets/Emojis/1.svg';
 import nt from '../assets/Emojis/4.svg';
 import sd from '../assets/Emojis/5.svg';
 import dn from '../assets/Emojis/3.svg';
+import { motion } from 'framer-motion';
+import { usePersistentTimer } from '../hooks/usePersistentTimer';
 interface DashboardProps {
   user: FirebaseUser;
   onLogout: () => Promise<void>;
@@ -309,26 +311,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   //   fetchProfilePic();
   // }, [user.uid, db]);
 
-  useEffect(() => {
-    if (activeActivity && remainingTime > 0) {
-      timerRef.current = setInterval(() => {
-        setRemainingTime((prevTime) => {
-          if (prevTime <= 1) {
-            clearInterval(timerRef.current!);
-            setActiveActivity(null);
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
-    }
 
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [activeActivity, remainingTime]);
 
   const calculateStreak = (moodHistory: MoodEntry[]): number => {
     if (moodHistory.length === 0) return 0;
@@ -690,8 +673,62 @@ const styles: { [key: string]: CSSProperties } = {
     cursor: 'pointer',
   },
 };
+
+const handleLogout = async () => {
+  await onLogout();
+  navigate('/login');
+};
+
+const handleMoodChange = (newMood: number) => {
+  setMood(newMood);
+  setIsSliding(true);
+};
+
+const handleMoodChangeEnd = async () => {
+  setIsSliding(false);
+  const now = new Date();
+  try {
+    const moodsRef = collection(db, 'moods', user.uid, 'entries');
+    await addDoc(moodsRef, {
+      mood: mood,
+      timestamp: serverTimestamp(),
+    });
+    console.log('Mood data sent to Firebase successfully');
+    setPopupMessage('Mood recorded!');
+    setShowPopup(true);
+    setTimeout(() => setShowPopup(false), 2000);
+
+    setLastRecordTime(now);
+    const updatedMoodHistory = [
+      {
+        mood: mood,
+        timestamp: Timestamp.fromDate(now),
+      },
+      ...moodHistory,
+    ];
+    setMoodHistory(updatedMoodHistory);
+
+    const userStreak = calculateStreak(updatedMoodHistory);
+    setStreak(userStreak);
+  } catch (error) {
+    console.error('Error sending mood data to Firebase:', error);
+    setPopupMessage('Failed to record mood. Please try again.');
+    setShowPopup(true);
+    setTimeout(() => setShowPopup(false), 3000);
+  }
+};
 const profilePicUrl=  mood > 80 ? ct :mood > 66 ? sm : mood > 50 ? sd: mood > 25 ?dn : nt;
+
 return (
+  <motion.div
+    style={styles.container}
+    initial="initial"
+    animate="in"
+    exit="out"
+    variants={pageVariants}
+    transition={pageTransition}
+  >
+
   <div style={styles.container}>
     <div style={styles.content}>
       <div style={styles.header}>
@@ -856,6 +893,7 @@ return (
           </div>
         </div>
       )}
+      </div>
     </motion.div>
   );
 };
