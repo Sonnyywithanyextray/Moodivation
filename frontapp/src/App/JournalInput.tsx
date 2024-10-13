@@ -8,9 +8,24 @@ interface JournalInputProps {
 const JournalInput: React.FC<JournalInputProps> = ({ onSubmit }) => {
   const [journalEntry, setJournalEntry] = useState("");
 
-  const handleSubmit = () => {
+
+   
+  const handleSubmit = async (entry: string) => {
     onSubmit(journalEntry);
-    setJournalEntry(""); // Clear input after submission
+    if (entry.trim() === "") return;
+
+    // Store the journal entry in Firebase
+    await addDoc(collection(db, "Journals"), {
+      entry: entry,
+      date: new Date(),
+    });
+
+    // Update local state
+    setJournalHistory(prevHistory => [
+      ...prevHistory,
+      { id: Math.random().toString(), entry, date: new Date() } // Add the new entry locally
+    ]);
+    setJournalEntry(""); // Clear the input after submission
   };
 
   return (

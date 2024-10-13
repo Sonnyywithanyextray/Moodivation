@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/firebase'; // Ensure to import your firebase configuration
-import { JournalContainer, JournalTitle, JournalTextArea, SubmitButton, HistoryContainer, HistoryTitle, HistoryItem } from './styles';
+import { JournalContainer,JournalHeader,  HistoryContainer, HistoryTitle, HistoryItem, NewButton, JournalContent } from './styles';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
+import {
 
+  Leaf,
+} from 'lucide-react';
 const JournalApp: React.FC = () => {
-  const [journalEntry, setJournalEntry] = useState<string>("");
   const [journalHistory, setJournalHistory] = useState<{ id: string; entry: string; date: Date }[]>([]);
 
   useEffect(() => {
@@ -23,34 +25,20 @@ const JournalApp: React.FC = () => {
   }, []);
 
   const handleJournalSubmit = async (entry: string) => {
-    if (entry.trim() === "") return;
-
-    // Store the journal entry in Firebase
-    await addDoc(collection(db, "Journals"), {
-      entry: entry,
-      date: new Date(),
-    });
-
-    // Update local state
-    setJournalHistory(prevHistory => [
-      ...prevHistory,
-      { id: Math.random().toString(), entry, date: new Date() } // Add the new entry locally
-    ]);
-    setJournalEntry(""); // Clear the input after submission
+ 
   };
 
   return (
     <JournalContainer>
-      <JournalTitle>Daily Journal</JournalTitle>
-      <JournalTextArea 
-        value={journalEntry} 
-        onChange={(e) => setJournalEntry(e.target.value)} 
-        placeholder="Write your journal entry here..." 
-      />
-      <SubmitButton onClick={() => handleJournalSubmit(journalEntry)}>
-        Submit
-      </SubmitButton>
-      
+      <JournalContent>
+     <JournalHeader>
+    
+     <Leaf color="#f5f5f5" size={30} />
+      <h3>Moodivation</h3>
+  
+      {/* <p>Embrace every moment of possibility</p> */}
+     </JournalHeader>
+      <NewButton onClick={() => handleJournalSubmit(journalEntry)}>Create New Entry</NewButton>
       <HistoryContainer>
         <HistoryTitle>Journal History</HistoryTitle>
         {journalHistory.map((entry) => (
@@ -60,6 +48,7 @@ const JournalApp: React.FC = () => {
           </HistoryItem>
         ))}
       </HistoryContainer>
+      </JournalContent>
     </JournalContainer>
   );
 };

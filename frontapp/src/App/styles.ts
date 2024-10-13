@@ -6,11 +6,51 @@ interface SentimentProps {
 }
 
 export const JournalContainer = styled.div`
-  margin: 20px;
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  background-color: black;
+    background-color: black;
+    color: white;
+      min-height: 100vh;
+      width: 100%;
+      padding: 1rem;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+`;
+export const JournalHeader = styled.div`
+    display: flex;
+    align-items: center;
+    height:100px;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    background-color:#4CAF50;
+    border-top-right-radius:10px;
+    border-top-left-radius:10px
+`;
+export const JournalContent = styled.div`
+    width: 100%;
+max-width: 480px;
+padding:1rem;
+box-sizing: border-box;
+`;
+
+export const NewButton = styled.button`
+  margin-top: 10px;
+  padding: 10px 15px;
+  align-items: center;
+  justify-content: center;
+  float:center;
+  align-content:center;
+  width:70%;
+  font-size: 1rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  box-shadow: 10px white;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #0056b3;
+  }
 `;
 
 export const JournalTitle = styled.h2`
@@ -31,7 +71,7 @@ export const SubmitButton = styled.button`
   margin-top: 10px;
   padding: 10px 15px;
   font-size: 1rem;
-  background-color: #007bff;
+  background-color: #4CAF50;
   color: white;
   border: none;
   border-radius: 4px;
