@@ -50,7 +50,11 @@ import {
 } from 'recharts';
 import { fetchQuote } from './quotes';
 import ChoiceActivities from './ChoiceActivities';
-
+import ct from '../assets/Emojis/2.svg';
+import sm from '../assets/Emojis/1.svg';
+import nt from '../assets/Emojis/4.svg';
+import sd from '../assets/Emojis/5.svg';
+import dn from '../assets/Emojis/3.svg';
 interface DashboardProps {
   user: FirebaseUser;
   onLogout: () => Promise<void>;
@@ -179,7 +183,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [lastRecordTime, setLastRecordTime] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [streak, setStreak] = useState(0);
-  const [profilePicUrl, setProfilePicUrl] = useState<string>('/api/placeholder/40/40');
   const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
   const [quote, setQuote] = useState<string>('Loading quote...');
   const [selectedTimeframe, setSelectedTimeframe] = useState<'daily' | 'weekly' | 'monthly'>('daily');
@@ -258,25 +261,25 @@ const Dashboard: React.FC<DashboardProps> = ({
     getQuote();
   }, []);
 
-  useEffect(() => {
-    const fetchProfilePic = async () => {
-      try {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          const data = userDocSnap.data();
-          if (data.profilePicUrl) {
-            setProfilePicUrl(data.profilePicUrl);
-          }
-        } else {
-          await setDoc(userDocRef, { profilePicUrl: '' });
-        }
-      } catch (error) {
-        console.error('Error fetching profile picture:', error);
-      }
-    };
-    fetchProfilePic();
-  }, [user.uid, db]);
+  // useEffect(() => {
+  //   const fetchProfilePic = async () => {
+  //     try {
+  //       const userDocRef = doc(db, 'users', user.uid);
+  //       const userDocSnap = await getDoc(userDocRef);
+  //       if (userDocSnap.exists()) {
+  //         const data = userDocSnap.data();
+  //         if (data.profilePicUrl) {
+  //           setProfilePicUrl(data.profilePicUrl);
+  //         }
+  //       } else {
+  //         await setDoc(userDocRef, { profilePicUrl: '' });
+  //       }
+  //     } catch (error) {
+  //       console.error('Error fetching profile picture:', error);
+  //     }
+  //   };
+  //   fetchProfilePic();
+  // }, [user.uid, db]);
 
   useEffect(() => {
     if (activeActivity && remainingTime > 0) {
@@ -480,12 +483,14 @@ const styles: { [key: string]: CSSProperties } = {
     alignItems: 'center',
   },
   avatar: {
-    width: '2.5rem',
-    height: '2.5rem',
-    borderRadius: '9999px',
+    borderColor:moodColor,
+    borderRadius: '50%',
     marginRight: '0.75rem',
     objectFit: 'cover',
     cursor: 'pointer',
+    border: "2px solid ",
+    height:'5rem',
+    width:'5rem',
   },
   welcomeText: {
     fontSize: windowWidth < 768 ? '1rem' : '1.25rem',
@@ -693,7 +698,7 @@ const styles: { [key: string]: CSSProperties } = {
     cursor: 'pointer',
   },
 };
-
+const profilePicUrl=  mood > 80 ? ct :mood > 66 ? sm : mood > 50 ? sd: mood > 25 ?dn : nt;
 return (
   <div style={styles.container}>
     <div style={styles.content}>
@@ -701,7 +706,8 @@ return (
         <div style={styles.userInfo}>
           <div style={{ position: 'relative' }}>
             <img
-              src={profilePicUrl}
+              src={profilePicUrl} 
+              
               alt="User"
               style={styles.avatar}
               onMouseEnter={() => setIsHoveringAvatar(true)}
@@ -745,15 +751,18 @@ return (
         <p style={styles.moodQuestion}>How are you feeling today?</p>
         <div style={styles.moodIcons}>
           <Frown
-            color={mood <= 33 ? '#ef4444' : '#9ca3af'}
+          color='#0e0e0f'
+            fill={mood <= 33 ? '#ef4444' : '#9ca3af'}
             size={24}
           />
           <Meh
-            color={mood > 33 && mood <= 66 ? '#eab308' : '#9ca3af'}
+          color='#020202'
+            fill={mood > 33 && mood <= 66 ? '#eab308' : '#9ca3af'}
             size={24}
           />
           <Smile
-            color={mood > 66 ? '#22c55e' : '#9ca3af'}
+          color='#08090a'
+            fill={mood > 66 ? '#22c55e' : '#9ca3af'}
             size={24}
           />
         </div>
@@ -771,7 +780,7 @@ return (
 
       <div style={styles.quoteCard}>
         <div style={styles.quoteContent}>
-          <Leaf color="#22c55e" size={20} />
+          <Leaf color="#22c55e" size={70} />
           <p style={styles.quote}>{quote}</p>
         </div>
         <div style={styles.moodOverview}>
