@@ -4,11 +4,6 @@ HackHarvard official project
 # Link to Hi-Fi Prototype:
 https://app.uizard.io/p/a5f82c46
 
-Here’s a detailed README file for your **Moodivation** project, structured to provide clarity on what the project does, how to set it up, and how others can contribute.
-
----
-
-# **Moodivation**
 
 MoodMarathon is an ephimeral web application that gamifies mental health maintenance by encouraging users to log in daily and complete various mental health challenges, such as deep breathing or journaling. Users must complete these challenges within a 24-hour window to maintain their streak. Failing to perform the daily challenge within this timeframe results in the loss of their streak.
 
@@ -113,6 +108,6 @@ This project is licensed under the MIT License – see the [LICENSE](LICENSE) fi
 ## Developers
 Etelson Sonny Alcius (https://github.com/Sonnyywithanyextray)
 
-Mercy Eze (https://github.com/MercyEze/)
+Mercy Eze (https://github.com/Mercy-Eze/)
 
 Joseph Oduyebo (https://github.com/jayco12/)
